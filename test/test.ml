@@ -279,9 +279,60 @@ let apply_diffs =
       "basic" ^ string_of_int idx, `Quick, basic_apply data diff exp)
     (List.combine basic_app (List.combine basic_files basic_diffs))
 
+let data = "data/"
+
+let regression_test name () =
+  let read file =
+    let filename = data ^ file in
+    let size = Unix.(stat filename).st_size in
+    let buf = Bytes.create size in
+    let fd = Unix.openfile filename [ Unix.O_RDONLY ] 0 in
+    let res = Unix.read fd buf 0 size in
+    assert (res = size) ;
+    Unix.close fd ;
+    Bytes.unsafe_to_string buf
+  in
+  let old = read (name ^ ".old") in
+  let diff = read (name ^ ".diff") in
+  let exp = read (name ^ ".new") in
+  match Patch.to_diffs diff with
+  | [ diff ] -> begin match Patch.patch (Some old) diff with
+    | Ok data -> Alcotest.(check string __LOC__ exp data)
+    | Error (`Msg m) -> Alcotest.fail m
+    end
+  | _ -> Alcotest.fail "expected one"
+
+module S = Set.Make(String)
+
+let drop_ext str =
+  try
+    let idx = String.rindex str '.' in
+    String.sub str 0 idx
+  with
+  | Not_found -> str
+
+let regression_diffs =
+  let collect_dir dir =
+    let open Unix in
+    let dh = opendir dir in
+    let next () = try Some (readdir dh) with End_of_file -> None in
+    let rec doone acc = function
+      | Some "." | Some ".." -> doone acc (next ())
+      | Some s -> doone (s :: acc) (next ())
+      | None -> acc
+    in
+    let res = doone [] (next ()) in
+    closedir dh ;
+    res
+  in
+  let files = collect_dir data in
+  let tests = List.fold_left (fun acc file -> S.add (drop_ext file) acc) S.empty files in
+  List.map (fun test -> "regression " ^ test, `Quick, regression_test test) (S.elements tests)
+
 let tests = [
   "parse", parse_diffs ;
   "apply", apply_diffs ;
+  "regression", regression_diffs ;
 ]
 
 let () =

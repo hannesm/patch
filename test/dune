@@ -1,4 +1,8 @@
-(test
+(executable
  (name test)
- (package patch)
  (libraries patch alcotest))
+
+(alias
+ (name runtest)
+ (deps (source_tree data) (:< test.exe))
+ (action (run %{<})))
