@@ -1,3 +1,55 @@
+(** USAGE:
+
+    This test works by generating two files (source and target),
+    diffing them using the system `diff -u` command,
+    applying our Patch code to the source file,
+    and checking that we get the target back.
+
+    Counter-examples will give you the source and target file.
+
+    From the root repository, run
+
+       dune exec test/crowbar_test.exe
+
+    to get quicheck-like (blackbox) fuzzing, and
+
+       mkdir -p /tmp/input
+       mkdir -p /tmp/output
+       echo foo > /tmp/input/test
+       dune build test/crowbar_test.exe
+       afl-fuzz -i /tmp/input -o /tmp/output dune exec test/crowbar_test.exe @@
+
+    for AFL-full (greybox) fuzzing.
+
+    If you find a counter-example, you can use src/patch_command
+    to reproduce the issue. For example, if the quickcheck mode tells you:
+
+    > patch: ....
+    > patch: FAIL
+    >
+    > When given the input:
+    >
+    >     ["\nx"; "\n"]
+    >
+    > the test failed:
+    >
+    >     "" != "\n"
+    >
+
+    You can run
+
+      echo -n -e "\nx" > file1
+      echo -n -e "\n" > file2
+      diff -u file1 file2 > diff
+      patch file1 diff -o file2-std-patch
+      dune exec src/patch_command.exe -- file1 diff -o file2-our-patch
+      diff file2-our-patch file2-std-patch
+      rm file1 file2 diff file2-std-patch file2-our-patch
+
+    to check for yourself.
+*)
+
+
 type line = string
 type file = line list
 
