@@ -1,8 +1,14 @@
 (executable
  (name test)
+ (modules test)
  (libraries patch alcotest))
 
 (alias
  (name runtest)
  (deps (source_tree data) (:< test.exe))
  (action (run %{<})))
+
+(executable
+ (name crowbar_test)
+ (modules crowbar_test)
+ (libraries patch crowbar))
