@@ -162,7 +162,7 @@ let basic_hunks =
   let hunk1 = [ { mine_start = 0 ; mine_len = 1 ; mine = ["foo"] ;
                   their_start = 0 ; their_len = 1 ; their = ["foobar"] } ]
   in
-  let diff = { mine_name = "a" ; their_name = "b" ; hunks = hunk1 ; no_nl = false } in
+  let diff = { mine_name = "a" ; their_name = "b" ; hunks = hunk1 ; mine_no_nl = false ; their_no_nl = false } in
   let hunk2 =
     [ { mine_start = 1 ; mine_len = 7 ; mine = [ "bar" ; "baz" ; "boo" ; "foo" ; "bar" ; "baz" ; "boo" ] ;
         their_start = 1 ; their_len = 7 ; their = [ "bar" ; "baz" ; "boo" ; "foo2" ; "bar" ; "baz" ; "boo" ] } ]

@@ -18,12 +18,9 @@ module String = struct
 
   let cuts sep str =
     let rec doit acc s =
-      if String.length s = 0 then
-        List.rev acc
-      else
-        match cut sep s with
-        | None -> List.rev (s :: acc)
-        | Some (a, b) -> doit (a :: acc) b
+      match cut sep s with
+      | None -> List.rev (s :: acc)
+      | Some (a, b) -> doit (a :: acc) b
     in
     doit [] str
 
@@ -40,6 +37,8 @@ module String = struct
   let get = String.get
 
   let concat = String.concat
+
+  let length = String.length
 end
 
 type hunk = {
@@ -113,40 +112,51 @@ let count_to_sl_sl data =
   else
     None
 
-let sort_into_bags mine their str =
-  match String.get str 0, String.slice ~start:1 str with
-  | ' ', data -> Some ((data :: mine), (data :: their), false)
-  | '+', data -> Some (mine, (data :: their), false)
-  | '-', data -> Some ((data :: mine), their, false)
-  | '\\', _ -> Some (mine, their, true) (* usually: "\No newline at end of file" *)
-  | _ -> None
+let sort_into_bags dir mine their m_nl t_nl str =
+  if String.length str = 0 then
+    None
+  else match String.get str 0, String.slice ~start:1 str with
+    | ' ', data -> Some (`Both, (data :: mine), (data :: their), m_nl, t_nl)
+    | '+', data -> Some (`Their, mine, (data :: their), m_nl, t_nl)
+    | '-', data -> Some (`Mine, (data :: mine), their, m_nl, t_nl)
+    | '\\', data ->
+      (* diff: 'No newline at end of file' turns out to be context-sensitive *)
+      (* so: -xxx\n\\No newline... means mine didn't have a newline *)
+      (* but +xxx\n\\No newline... means theirs doesn't have a newline *)
+      assert (data = " No newline at end of file");
+      let my_nl, their_nl = match dir with
+        | `Both -> true, true
+        | `Mine -> true, t_nl
+        | `Their -> m_nl, true
+      in
+      Some (dir, mine, their, my_nl, their_nl)
+    | _ -> None
 
-let to_hunk count data =
+let to_hunk count data mine_no_nl their_no_nl =
   match count_to_sl_sl count with
-  | None -> (None, false, count :: data)
+  | None -> None, mine_no_nl, their_no_nl, count :: data
   | Some ((mine_start, mine_len), (their_start, their_len)) ->
-     let rec step mine their no_nl = function
-       | [] -> (List.rev mine, List.rev their, no_nl, [])
-       | x::xs ->
-          match sort_into_bags mine their x with
-          | Some (mine, their, no_nl') -> step mine their no_nl' xs
-          | None -> (List.rev mine, List.rev their, no_nl, x :: xs)
-     in
-     let mine, their, no_nl, rest = step [] [] false data in
-     (Some { mine_start ; mine_len ; mine ; their_start ; their_len ; their }, no_nl, rest)
+    let rec step dir mine their mine_no_nl their_no_nl = function
+      | [] -> (List.rev mine, List.rev their, mine_no_nl, their_no_nl, [])
+      | x::xs -> match sort_into_bags dir mine their mine_no_nl their_no_nl x with
+        | Some (dir, mine, their, mine_no_nl', their_no_nl') -> step dir mine their mine_no_nl' their_no_nl' xs
+        | None -> (List.rev mine, List.rev their, mine_no_nl, their_no_nl, x :: xs)
+    in
+    let mine, their, mine_no_nl, their_no_nl, rest = step `Both [] [] mine_no_nl their_no_nl data in
+    (Some { mine_start ; mine_len ; mine ; their_start ; their_len ; their }, mine_no_nl, their_no_nl, rest)
 
-let rec to_hunks (no_nl, acc) = function
-  | [] -> (List.rev acc, no_nl, [])
-  | count::data ->
-     match to_hunk count data with
-     | None, no_nl, rest -> (List.rev acc, no_nl, rest)
-     | Some hunk, no_nl, rest -> to_hunks (no_nl, hunk :: acc) rest
+let rec to_hunks (mine_no_nl, their_no_nl, acc) = function
+  | [] -> (List.rev acc, mine_no_nl, their_no_nl, [])
+  | count::data -> match to_hunk count data mine_no_nl their_no_nl with
+    | None, mine_no_nl, their_no_nl, rest -> List.rev acc, mine_no_nl, their_no_nl, rest
+    | Some hunk, mine_no_nl, their_no_nl, rest -> to_hunks (mine_no_nl, their_no_nl, hunk :: acc) rest
 
 type t = {
   mine_name : string ;
   their_name : string ;
   hunks : hunk list ;
-  no_nl : bool ;
+  mine_no_nl : bool ;
+  their_no_nl : bool ;
 }
 
 let pp ppf t =
@@ -172,14 +182,16 @@ let to_diff data =
   match find_start data with
   | Some (mine_name, their_name, rest) ->
     let mine_name, their_name = filename mine_name, filename their_name in
-    let hunks, no_nl, rest = to_hunks (false, []) rest in
-    Some ({ mine_name ; their_name ; hunks ; no_nl }, rest)
+    let hunks, mine_no_nl, their_no_nl, rest = to_hunks (false, false, []) rest in
+    Some ({ mine_name ; their_name ; hunks ; mine_no_nl ; their_no_nl }, rest)
   | None -> None
 
 let to_lines = String.cuts '\n'
 
 let to_diffs data =
   let lines = to_lines data in
+  (* now lines contains an empty element at the back, the trailing newline *)
+  (*  let lines = match List.rev lines with ""::tl -> List.rev tl | _ -> lines in *)
   let rec doit acc = function
     | [] -> List.rev acc
     | xs -> match to_diff xs with
@@ -192,5 +204,11 @@ let patch filedata diff =
   let old = match filedata with None -> [] | Some x -> to_lines x in
   let idx, lines = List.fold_left (apply_hunk old) (0, []) diff.hunks in
   let lines = lines @ drop old idx in
-  let lines = if diff.no_nl then lines else lines @ [""] in
+  let lines =
+    match diff.mine_no_nl, diff.their_no_nl with
+    | false, true -> (match List.rev lines with ""::tl -> List.rev tl | _ -> lines)
+    | true, false -> lines @ [ "" ]
+    | false, false -> lines
+    | true, true -> lines
+  in
   Ok (String.concat "\n" lines)

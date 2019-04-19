@@ -13,7 +13,8 @@ type t = {
   mine_name : string ;
   their_name : string ;
   hunks : hunk list ;
-  no_nl : bool ;
+  mine_no_nl : bool ;
+  their_no_nl : bool ;
 }
 
 val pp : Format.formatter -> t -> unit
