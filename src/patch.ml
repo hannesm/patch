@@ -39,6 +39,8 @@ module String = struct
   let concat = String.concat
 
   let length = String.length
+
+  let equal = String.equal
 end
 
 type hunk = {
@@ -154,25 +156,59 @@ let rec to_hunks (mine_no_nl, their_no_nl, acc) = function
     | None, mine_no_nl, their_no_nl, rest -> List.rev acc, mine_no_nl, their_no_nl, rest
     | Some hunk, mine_no_nl, their_no_nl, rest -> to_hunks (mine_no_nl, their_no_nl, hunk :: acc) rest
 
+type operation =
+  | Edit of string
+  | Rename of string * string
+  | Delete of string
+  | Create of string
+
+let operation_eq a b = match a, b with
+  | Edit a, Edit b -> String.equal a b
+  | Rename (a, a'), Rename (b, b') -> String.equal a b && String.equal a' b'
+  | Delete a, Delete b -> String.equal a b
+  | Create a, Create b -> String.equal a b
+  | _ -> false
+
+let pp_operation ppf = function
+  | Edit name ->
+    Format.fprintf ppf "--- b/%s\n" name ;
+    Format.fprintf ppf "+++ a/%s\n" name
+  | Rename (old_name, new_name) ->
+    Format.fprintf ppf "--- b/%s\n" old_name ;
+    Format.fprintf ppf "+++ a/%s\n" new_name
+  | Delete name ->
+    Format.fprintf ppf "--- b/%s\n" name ;
+    Format.fprintf ppf "+++ /dev/null\n"
+  | Create name ->
+    Format.fprintf ppf "--- /dev/null\n" ;
+    Format.fprintf ppf "+++ q/%s\n" name
+
 type t = {
-  mine_name : string ;
-  their_name : string ;
+  operation : operation ;
   hunks : hunk list ;
   mine_no_nl : bool ;
   their_no_nl : bool ;
 }
 
 let pp ppf t =
-  Format.fprintf ppf "--- b/%s\n" t.mine_name ;
-  Format.fprintf ppf "+++ a/%s\n" t.their_name ;
+  pp_operation ppf t.operation ;
   List.iter (pp_hunk ppf) t.hunks
 
-let filename name =
-  let str = match String.cut ' ' name with None -> name | Some (x, _) -> x in
-  if String.is_prefix ~prefix:"a/" str || String.is_prefix ~prefix:"b/" str then
-    String.slice ~start:2 str
-  else
-    str
+let op mine their =
+  let get_filename_opt n =
+    let s = match String.cut ' ' n with None -> n | Some (x, _) -> x in
+    if s = "/dev/null" then
+      None
+    else if String.(is_prefix ~prefix:"a/" s || is_prefix ~prefix:"b/" s) then
+      Some (String.slice ~start:2 s)
+    else
+      Some s
+  in
+  match get_filename_opt mine, get_filename_opt their with
+  | None, Some n -> Create n
+  | Some n, None -> Delete n
+  | Some a, Some b -> if String.equal a b then Edit a else Rename (a, b)
+  | None, None -> assert false (* ??!?? *)
 
 let to_diff data =
   (* first locate --- and +++ lines *)
@@ -184,9 +220,9 @@ let to_diff data =
   in
   match find_start data with
   | Some (mine_name, their_name, rest) ->
-    let mine_name, their_name = filename mine_name, filename their_name in
+    let operation = op mine_name their_name in
     let hunks, mine_no_nl, their_no_nl, rest = to_hunks (false, false, []) rest in
-    Some ({ mine_name ; their_name ; hunks ; mine_no_nl ; their_no_nl }, rest)
+    Some ({ operation ; hunks ; mine_no_nl ; their_no_nl }, rest)
   | None -> None
 
 let to_lines = String.cuts '\n'

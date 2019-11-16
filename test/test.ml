@@ -23,8 +23,7 @@ let t =
     let pp = Patch.pp
     let equal a b =
       let open Patch in
-      String.equal a.mine_name b.mine_name &&
-      String.equal a.their_name b.their_name &&
+      operation_eq a.operation b.operation &&
       List.length a.hunks = List.length b.hunks &&
       List.for_all (fun h -> List.exists (fun h' -> hunk_eq h h') b.hunks) a.hunks
   end in (module M: Alcotest.TESTABLE with type t = M.t)
@@ -162,7 +161,7 @@ let basic_hunks =
   let hunk1 = [ { mine_start = 0 ; mine_len = 1 ; mine = ["foo"] ;
                   their_start = 0 ; their_len = 1 ; their = ["foobar"] } ]
   in
-  let diff = { mine_name = "a" ; their_name = "b" ; hunks = hunk1 ; mine_no_nl = false ; their_no_nl = false } in
+  let diff = { operation = Rename ("a", "b") ; hunks = hunk1 ; mine_no_nl = false ; their_no_nl = false } in
   let hunk2 =
     [ { mine_start = 1 ; mine_len = 7 ; mine = [ "bar" ; "baz" ; "boo" ; "foo" ; "bar" ; "baz" ; "boo" ] ;
         their_start = 1 ; their_len = 7 ; their = [ "bar" ; "baz" ; "boo" ; "foo2" ; "bar" ; "baz" ; "boo" ] } ]
@@ -307,22 +306,22 @@ let multi_hunks =
   let hunk1 = [ { mine_start = 0 ; mine_len = 1 ; mine = ["bar"] ;
                   their_start = 0 ; their_len = 1 ; their = ["foobar"] } ]
   in
-  let diff1 = { mine_name = "foo" ; their_name = "bar" ; hunks = hunk1 ; mine_no_nl = false ; their_no_nl = false } in
+  let diff1 = { operation = Rename ("foo", "bar") ; hunks = hunk1 ; mine_no_nl = false ; their_no_nl = false } in
   let hunk2 =
     [ { mine_start = 0 ; mine_len = 1 ; mine = [ "baz" ] ;
         their_start = 0 ; their_len = 0 ; their = [] } ]
   in
-  let diff2 = { mine_name = "foobar" ; their_name = "/dev/null" ; hunks = hunk2 ; mine_no_nl = false ; their_no_nl = false } in
+  let diff2 = { operation = Delete "foobar" ; hunks = hunk2 ; mine_no_nl = false ; their_no_nl = false } in
   let hunk3 = [
     { mine_start = 0 ; mine_len = 0 ; mine = [ ] ;
       their_start = 0 ; their_len = 1 ; their = [ "baz" ] }
   ] in
-  let diff3 = { mine_name = "/dev/null" ; their_name = "baz" ; hunks = hunk3 ;  mine_no_nl = false ; their_no_nl = false } in
+  let diff3 = { operation = Create "baz" ; hunks = hunk3 ;  mine_no_nl = false ; their_no_nl = false } in
   let hunk4 = [
     { mine_start = 0 ; mine_len = 1 ; mine = [ "foobarbaz" ] ;
       their_start = 0 ; their_len = 1 ; their = [ "foobar" ] }
   ] in
-  let diff4 = { mine_name = "foobarbaz" ; their_name = "foobarbaz" ; hunks = hunk4 ;  mine_no_nl = false ; their_no_nl = false } in
+  let diff4 = { operation = Edit "foobarbaz" ; hunks = hunk4 ;  mine_no_nl = false ; their_no_nl = false } in
   [ diff1 ; diff2 ; diff3 ; diff4 ]
 
 let multi_files = [ Some "bar" ; Some "baz" ; None ; Some "foobarbaz" ]

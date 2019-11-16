@@ -9,9 +9,18 @@ type hunk = {
 
 val pp_hunk : Format.formatter -> hunk -> unit
 
+type operation =
+  | Edit of string
+  | Rename of string * string
+  | Delete of string
+  | Create of string
+
+val pp_operation : Format.formatter -> operation -> unit
+
+val operation_eq : operation -> operation -> bool
+
 type t = {
-  mine_name : string ;
-  their_name : string ;
+  operation : operation ;
   hunks : hunk list ;
   mine_no_nl : bool ;
   their_no_nl : bool ;
