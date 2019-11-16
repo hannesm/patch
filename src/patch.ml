@@ -79,6 +79,7 @@ let drop data num =
   try drop data num with
   | Invalid_argument _ -> invalid_arg ("drop " ^ string_of_int num ^ " on " ^ string_of_int (List.length data))
 
+(* TODO verify that it applies cleanly *)
 let apply_hunk old (index, to_build) hunk =
   try
     let prefix = take (drop old index) (hunk.mine_start - index) in
@@ -114,6 +115,8 @@ let count_to_sl_sl data =
 
 let sort_into_bags dir mine their m_nl t_nl str =
   if String.length str = 0 then
+    None
+  else if String.is_prefix ~prefix:"---" str then
     None
   else match String.get str 0, String.slice ~start:1 str with
     | ' ', data -> Some (`Both, (data :: mine), (data :: their), m_nl, t_nl)
@@ -190,12 +193,10 @@ let to_lines = String.cuts '\n'
 
 let to_diffs data =
   let lines = to_lines data in
-  (* now lines contains an empty element at the back, the trailing newline *)
-  (*  let lines = match List.rev lines with ""::tl -> List.rev tl | _ -> lines in *)
   let rec doit acc = function
     | [] -> List.rev acc
     | xs -> match to_diff xs with
-      | None -> acc
+      | None -> List.rev acc
       | Some (diff, rest) -> doit (diff :: acc) rest
   in
   doit [] lines

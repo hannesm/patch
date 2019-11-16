@@ -135,16 +135,25 @@ let get_diffs (file1 : file) (file2 : file) : file =
   res
 
 let check_Patch file1 file2 =
-  match Patch.to_diffs (string_of_file (get_diffs file1 file2)) with
+  let text_diff = string_of_file (get_diffs file1 file2) in
+  match Patch.to_diffs text_diff with
   | [] -> Crowbar.check_eq (string_of_file file1) (string_of_file file2)
   | _::_::_ -> Crowbar.fail "not a single diff!"
   | [diff] ->
-    match Patch.patch (Some (string_of_file file1)) diff with
-    | Error (`Msg str) -> Crowbar.fail str
+    let data = string_of_file file1 in
+    match Patch.patch (Some data) diff with
+    | Error (`Msg str) ->
+      let exp = string_of_file file2 in
+      Crowbar.fail (str ^ " input file\n" ^ data ^ "\ndiff\n" ^ text_diff ^ "\nexpected\n" ^ exp)
     | Ok output ->
-      Crowbar.check_eq
-        ~pp:Crowbar.pp_string
-        output (string_of_file file2)
+      let exp = string_of_file file2 in
+      if String.equal exp output then
+        Crowbar.check_eq
+          ~pp:Crowbar.pp_string
+          output exp
+      else
+        Crowbar.fail ("input fileFFF\n" ^ data ^ "FFF\ndiffFFF\n" ^ text_diff ^ "FFF\nexpectedFFF\n" ^ exp ^ "FFF")
+
 
 let () =
   Crowbar.(add_test ~name:"patch" [Gen.file; Gen.file] check_Patch)

@@ -279,6 +279,71 @@ let apply_diffs =
       "basic" ^ string_of_int idx, `Quick, basic_apply data diff exp)
     (List.combine basic_app (List.combine basic_files basic_diffs))
 
+(* a diff with multiple files to patch, with each of the four kinds:
+   rename, delete, create, edit *)
+let multi_diff = {|
+--- foo
++++ bar
+@@ -1 +1 @@
+-bar
++foobar
+--- foobar
++++ /dev/null
+@@ -1 +0,0 @@
+-baz
+--- /dev/null
++++ baz
+@@ -0,0 +1 @@
++baz
+--- foobarbaz
++++ foobarbaz
+@@ -1 +1 @@
+-foobarbaz
++foobar
+|}
+
+let multi_hunks =
+  let open Patch in
+  let hunk1 = [ { mine_start = 0 ; mine_len = 1 ; mine = ["bar"] ;
+                  their_start = 0 ; their_len = 1 ; their = ["foobar"] } ]
+  in
+  let diff1 = { mine_name = "foo" ; their_name = "bar" ; hunks = hunk1 ; mine_no_nl = false ; their_no_nl = false } in
+  let hunk2 =
+    [ { mine_start = 0 ; mine_len = 1 ; mine = [ "baz" ] ;
+        their_start = 0 ; their_len = 0 ; their = [] } ]
+  in
+  let diff2 = { mine_name = "foobar" ; their_name = "/dev/null" ; hunks = hunk2 ; mine_no_nl = false ; their_no_nl = false } in
+  let hunk3 = [
+    { mine_start = 0 ; mine_len = 0 ; mine = [ ] ;
+      their_start = 0 ; their_len = 1 ; their = [ "baz" ] }
+  ] in
+  let diff3 = { mine_name = "/dev/null" ; their_name = "baz" ; hunks = hunk3 ;  mine_no_nl = false ; their_no_nl = false } in
+  let hunk4 = [
+    { mine_start = 0 ; mine_len = 1 ; mine = [ "foobarbaz" ] ;
+      their_start = 0 ; their_len = 1 ; their = [ "foobar" ] }
+  ] in
+  let diff4 = { mine_name = "foobarbaz" ; their_name = "foobarbaz" ; hunks = hunk4 ;  mine_no_nl = false ; their_no_nl = false } in
+  [ diff1 ; diff2 ; diff3 ; diff4 ]
+
+let multi_files = [ Some "bar" ; Some "baz" ; None ; Some "foobarbaz" ]
+
+let multi_exp = [ "foobar" ; "" ; "baz" ; "foobar" ]
+
+let multi_apply () =
+  let diffs = Patch.to_diffs multi_diff in
+  Alcotest.(check int __LOC__ (List.length multi_files) (List.length diffs));
+  Alcotest.(check int __LOC__ (List.length multi_exp) (List.length diffs));
+  List.iter2 (fun diff (input, expected) ->
+      match Patch.patch input diff with
+      | Ok data -> Alcotest.(check string __LOC__ expected data)
+      | Error (`Msg m) -> Alcotest.fail m)
+    diffs (List.combine multi_files multi_exp)
+
+let multi_diffs = [
+  "multi parse", `Quick, basic_parse multi_diff multi_hunks ;
+  "multi apply", `Quick, multi_apply ;
+]
+
 let data = "data/"
 
 let regression_test name () =
@@ -332,6 +397,7 @@ let regression_diffs =
 let tests = [
   "parse", parse_diffs ;
   "apply", apply_diffs ;
+  "multiple", multi_diffs ;
   "regression", regression_diffs ;
 ]
 
