@@ -196,7 +196,7 @@ let pp ppf t =
 
 let operation_of_strings mine their =
   let get_filename_opt n =
-    let s = match String.cut ' ' n with None -> n | Some (x, _) -> x in
+    let s = match String.cut '\t' n with None -> n | Some (x, _) -> x in
     if s = "/dev/null" then
       None
     else if String.(is_prefix ~prefix:"a/" s || is_prefix ~prefix:"b/" s) then
