@@ -294,6 +294,7 @@ let multi_diff = {|
 +++ baz
 @@ -0,0 +1 @@
 +baz
+\ No newline at end of file
 --- foobarbaz
 +++ foobarbaz
 @@ -1 +1 @@
@@ -316,7 +317,7 @@ let multi_hunks =
     { mine_start = 0 ; mine_len = 0 ; mine = [ ] ;
       their_start = 0 ; their_len = 1 ; their = [ "baz" ] }
   ] in
-  let diff3 = { operation = Create "baz" ; hunks = hunk3 ;  mine_no_nl = false ; their_no_nl = false } in
+  let diff3 = { operation = Create "baz" ; hunks = hunk3 ;  mine_no_nl = false ; their_no_nl = true } in
   let hunk4 = [
     { mine_start = 0 ; mine_len = 1 ; mine = [ "foobarbaz" ] ;
       their_start = 0 ; their_len = 1 ; their = [ "foobar" ] }
