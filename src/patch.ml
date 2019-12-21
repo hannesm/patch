@@ -93,13 +93,14 @@ let apply_hunk old (index, to_build) hunk =
 let to_start_len data =
   (* input being "?19,23" *)
   match String.cut ',' (String.slice ~start:1 data) with
-  | None when data = "+1" -> (0, 1)
-  | None when data = "-1" -> (0, 1)
+  | None when data = "+1" || data = "-1" -> (0, 1)
   | None -> invalid_arg ("start_len broken in " ^ data)
   | Some (start, len) ->
-     let start = int_of_string start in
-     let st = if start = 0 then start else pred start in
-     (st, int_of_string len)
+     let len = int_of_string len
+     and start = int_of_string start
+     in
+     let st = if len = 0 || start = 0 then start else pred start in
+     (st, len)
 
 let count_to_sl_sl data =
   if String.is_prefix ~prefix:"@@" data then
@@ -194,9 +195,9 @@ let pp ppf t =
   pp_operation ppf t.operation ;
   List.iter (pp_hunk ppf) t.hunks
 
-let op mine their =
+let operation_of_strings mine their =
   let get_filename_opt n =
-    let s = match String.cut ' ' n with None -> n | Some (x, _) -> x in
+    let s = match String.cut '\t' n with None -> n | Some (x, _) -> x in
     if s = "/dev/null" then
       None
     else if String.(is_prefix ~prefix:"a/" s || is_prefix ~prefix:"b/" s) then
@@ -212,15 +213,15 @@ let op mine their =
 
 let to_diff data =
   (* first locate --- and +++ lines *)
-  let cut4 = String.slice ~start:4 in
   let rec find_start = function
     | [] -> None
-    | x::y::xs when String.is_prefix ~prefix:"---" x -> Some (cut4 x, cut4 y, xs)
+    | x::y::xs when String.is_prefix ~prefix:"---" x ->
+      let mine = String.slice ~start:4 x and their = String.slice ~start:4 y in
+      Some (operation_of_strings mine their, xs)
     | _::xs -> find_start xs
   in
   match find_start data with
-  | Some (mine_name, their_name, rest) ->
-    let operation = op mine_name their_name in
+  | Some (operation, rest) ->
     let hunks, mine_no_nl, their_no_nl, rest = to_hunks (false, false, []) rest in
     Some ({ operation ; hunks ; mine_no_nl ; their_no_nl }, rest)
   | None -> None
@@ -245,6 +246,7 @@ let patch filedata diff =
     match diff.mine_no_nl, diff.their_no_nl with
     | false, true -> (match List.rev lines with ""::tl -> List.rev tl | _ -> lines)
     | true, false -> lines @ [ "" ]
+    | false, false when filedata = None -> lines @ [ "" ]
     | false, false -> lines
     | true, true -> lines
   in

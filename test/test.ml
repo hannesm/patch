@@ -10,23 +10,15 @@ let hunk_eq a b =
   List.for_all (fun x -> List.mem x b.mine) a.mine &&
   List.for_all (fun x -> List.mem x b.their) a.their
 
-let hunk =
-  let module M = struct
-    type t = Patch.hunk
-    let pp = Patch.pp_hunk
-    let equal = hunk_eq
-  end in (module M: Alcotest.TESTABLE with type t = M.t)
+let test_hunk = Alcotest.testable Patch.pp_hunk hunk_eq
 
-let t =
-  let module M = struct
-    type t = Patch.t
-    let pp = Patch.pp
-    let equal a b =
-      let open Patch in
-      operation_eq a.operation b.operation &&
-      List.length a.hunks = List.length b.hunks &&
-      List.for_all (fun h -> List.exists (fun h' -> hunk_eq h h') b.hunks) a.hunks
-  end in (module M: Alcotest.TESTABLE with type t = M.t)
+let patch_eq a b =
+  let open Patch in
+  operation_eq a.operation b.operation &&
+  List.length a.hunks = List.length b.hunks &&
+  List.for_all (fun h -> List.exists (fun h' -> hunk_eq h h') b.hunks) a.hunks
+
+let test_t = Alcotest.testable Patch.pp patch_eq
 
 let basic_files = [
   "foo\n" ;
@@ -89,16 +81,21 @@ foo
 foo
 |} ]
 
-let basic_diffs = [
-{|--- a   2019-03-10 16:48:51.826103000 +0100
-+++ b   2019-03-10 16:48:54.373352000 +0100
-@@ -1 +1 @@
+let basic_diffs =
+  let hdr =
+    Printf.sprintf
+{|--- a%s2019-03-10 16:48:51.826103000 +0100
++++ b%s2019-03-10 16:48:54.373352000 +0100
+|} "\t" "\t"
+  in
+  [
+    hdr ^
+{|@@ -1 +1 @@
 -foo
 +foobar
 |} ;
-{|--- a   2019-03-10 17:26:02.773281000 +0100
-+++ b   2019-03-10 17:26:11.088352000 +0100
-@@ -2,7 +2,7 @@
+    hdr ^
+{|@@ -2,7 +2,7 @@
  bar
  baz
  boo
@@ -108,9 +105,8 @@ let basic_diffs = [
  baz
  boo
 |} ;
-{|--- a   2019-03-10 17:26:02.773281000 +0100
-+++ b   2019-03-10 17:35:48.434586000 +0100
-@@ -1,5 +1,5 @@
+    hdr ^
+{|@@ -1,5 +1,5 @@
  foo
 -bar
 +bar2
@@ -124,9 +120,8 @@ let basic_diffs = [
 -baz
 +baz3
 |} ;
-{|--- a   2019-03-10 17:39:43.596593000 +0100
-+++ b   2019-03-10 17:40:05.894975000 +0100
-@@ -1,6 +1,7 @@
+    hdr ^
+{|@@ -1,6 +1,7 @@
  foo
  foo
  foo
@@ -258,7 +253,7 @@ bar2
 
 let basic_parse diff exp () =
   let diffs = Patch.to_diffs diff in
-  Alcotest.(check (list t) __LOC__ exp diffs)
+  Alcotest.(check (list test_t) __LOC__ exp diffs)
 
 let parse_diffs =
   List.mapi (fun idx (diff, exp) ->
@@ -294,6 +289,7 @@ let multi_diff = {|
 +++ baz
 @@ -0,0 +1 @@
 +baz
+\ No newline at end of file
 --- foobarbaz
 +++ foobarbaz
 @@ -1 +1 @@
@@ -316,7 +312,7 @@ let multi_hunks =
     { mine_start = 0 ; mine_len = 0 ; mine = [ ] ;
       their_start = 0 ; their_len = 1 ; their = [ "baz" ] }
   ] in
-  let diff3 = { operation = Create "baz" ; hunks = hunk3 ;  mine_no_nl = false ; their_no_nl = false } in
+  let diff3 = { operation = Create "baz" ; hunks = hunk3 ;  mine_no_nl = false ; their_no_nl = true } in
   let hunk4 = [
     { mine_start = 0 ; mine_len = 1 ; mine = [ "foobarbaz" ] ;
       their_start = 0 ; their_len = 1 ; their = [ "foobar" ] }
@@ -345,22 +341,39 @@ let multi_diffs = [
 
 let data = "data/"
 
+let read file =
+  let filename = data ^ file in
+  let size = Unix.(stat filename).st_size in
+  let buf = Bytes.create size in
+  let fd = Unix.openfile filename [ Unix.O_RDONLY ] 0 in
+  let res = Unix.read fd buf 0 size in
+  assert (res = size) ;
+  Unix.close fd ;
+  Bytes.unsafe_to_string buf
+
+let opt_read file = try Some (read file) with Unix.Unix_error _ -> None
+
+let op_test = Alcotest.testable Patch.pp_operation Patch.operation_eq
+
+let parse_real_diff_header file hdr () =
+  let data = read (file ^ ".diff") in
+  let diffs = Patch.to_diffs data in
+  Alcotest.(check int __LOC__ 1 (List.length diffs));
+  Alcotest.check op_test __LOC__ hdr (List.hd diffs).Patch.operation
+
+let parse_real_diff_headers = [
+  "parsing first.diff", `Quick,
+  parse_real_diff_header "first" (Patch.Rename ("first.old", "first.new")) ;
+  "parsing create1.diff", `Quick,
+  parse_real_diff_header "create1" (Patch.Create "create1") ;
+]
+
 let regression_test name () =
-  let read file =
-    let filename = data ^ file in
-    let size = Unix.(stat filename).st_size in
-    let buf = Bytes.create size in
-    let fd = Unix.openfile filename [ Unix.O_RDONLY ] 0 in
-    let res = Unix.read fd buf 0 size in
-    assert (res = size) ;
-    Unix.close fd ;
-    Bytes.unsafe_to_string buf
-  in
-  let old = read (name ^ ".old") in
+  let old = opt_read (name ^ ".old") in
   let diff = read (name ^ ".diff") in
   let exp = read (name ^ ".new") in
   match Patch.to_diffs diff with
-  | [ diff ] -> begin match Patch.patch (Some old) diff with
+  | [ diff ] -> begin match Patch.patch old diff with
     | Ok data -> Alcotest.(check string __LOC__ exp data)
     | Error (`Msg m) -> Alcotest.fail m
     end
@@ -397,6 +410,7 @@ let tests = [
   "parse", parse_diffs ;
   "apply", apply_diffs ;
   "multiple", multi_diffs ;
+  "parse real diffs", parse_real_diff_headers ;
   "regression", regression_diffs ;
 ]
 
