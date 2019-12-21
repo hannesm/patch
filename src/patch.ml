@@ -271,11 +271,19 @@ let to_diffs data =
   doit [] lines
 
 let patch filedata diff =
-  let old = match filedata with None -> [] | Some x -> to_lines x in
   match diff.operation with
-  | Rename_only _ -> Some (String.concat "\n" old)
+  | Rename_only _ -> filedata
   | Delete _ -> None
+  | Create _ ->
+    begin match diff.hunks with
+      | [ the_hunk ] ->
+        let d = the_hunk.their in
+        let lines = if diff.their_no_nl then d else d @ [""] in
+        Some (String.concat "\n" lines)
+      | _ -> assert false
+    end
   | _ ->
+    let old = match filedata with None -> [] | Some x -> to_lines x in
     let idx, lines = List.fold_left (apply_hunk old) (0, []) diff.hunks in
     let lines = lines @ drop old idx in
     let lines =
