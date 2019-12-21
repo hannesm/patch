@@ -9,7 +9,7 @@ license: "ISC"
 
 depends: [
   "ocaml" {>= "4.04.2"}
-  "dune" {build}
+  "dune"
   "alcotest" {with-test}
   "crowbar" {with-test}
 ]
@@ -20,5 +20,6 @@ build: [
 ]
 synopsis: "Patch library purely in OCaml"
 description: """
-A pure OCaml implementation for patching.
+This is a library which parses unified diff and git diff output, and can
+apply a patch in memory.
 """

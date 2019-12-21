@@ -14,8 +14,9 @@ type operation =
   | Rename of string * string
   | Delete of string
   | Create of string
+  | Rename_only of string * string
 
-val pp_operation : Format.formatter -> operation -> unit
+val pp_operation : git:bool -> Format.formatter -> operation -> unit
 
 val operation_eq : operation -> operation -> bool
 
@@ -26,8 +27,8 @@ type t = {
   their_no_nl : bool ;
 }
 
-val pp : Format.formatter -> t -> unit
+val pp : git:bool -> Format.formatter -> t -> unit
 
 val to_diffs : string -> t list
 
-val patch : string option -> t -> (string, [> `Msg of string ]) result
+val patch : string option -> t -> string option
