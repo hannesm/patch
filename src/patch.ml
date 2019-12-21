@@ -273,8 +273,8 @@ let to_diffs data =
 let patch filedata diff =
   let old = match filedata with None -> [] | Some x -> to_lines x in
   match diff.operation with
-  | Rename_only _ -> Ok (String.concat "\n" old)
-  | Delete _ -> Ok ""
+  | Rename_only _ -> Some (String.concat "\n" old)
+  | Delete _ -> None
   | _ ->
     let idx, lines = List.fold_left (apply_hunk old) (0, []) diff.hunks in
     let lines = lines @ drop old idx in
@@ -286,4 +286,4 @@ let patch filedata diff =
       | false, false -> lines
       | true, true -> lines
     in
-    Ok (String.concat "\n" lines)
+    Some (String.concat "\n" lines)

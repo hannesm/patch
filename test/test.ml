@@ -21,8 +21,8 @@ let patch_eq a b =
 let test_t = Alcotest.testable (Patch.pp ~git:false) patch_eq
 
 let basic_files = [
-  "foo\n" ;
-  {|foo
+  Some "foo\n" ;
+  Some {|foo
 bar
 baz
 boo
@@ -31,7 +31,7 @@ bar
 baz
 boo
 |} ;
-  {|foo
+  Some {|foo
 bar
 baz
 boo
@@ -43,7 +43,7 @@ foo
 bar
 baz
 |} ;
-  {|foo
+  Some {|foo
 foo
 foo
 foo
@@ -79,7 +79,10 @@ foo
 foo
 foo
 foo
-|} ]
+|} ;
+  None ;
+  Some "foo\n" ;
+  Some "foo\n" ]
 
 let basic_diffs =
   let hdr =
@@ -149,7 +152,24 @@ let basic_diffs =
 +foo
 +foo
 +bar2
-|} ]
+|} ;
+{|--- /dev/null
++++ b
+@@ -0,0 +1 @@
++foo
+|} ;
+{|--- a
++++ /dev/null
+@@ -1 +0,0 @@
+-foo
+|} ;
+{|--- a
++++ b
+@@ -1 +1,2 @@
+ foo
++foo
+|}
+  ]
 
 let basic_hunks =
   let open Patch in
@@ -175,17 +195,35 @@ let basic_hunks =
     { mine_start = 30 ; mine_len = 6 ; mine = [ "foo" ; "foo" ; "foo" ; "foo" ; "foo" ; "foo" ] ;
       their_start = 32 ; their_len = 11 ; their = [ "foo" ; "foo" ; "foo" ; "bar" ; "foo" ; "foo" ; "foo" ; "foo" ; "foo" ; "foo" ; "bar2" ] }
   ] in
+  let hunk5= [
+    { mine_start = 0 ; mine_len = 0 ; mine = [] ;
+      their_start = 0 ; their_len = 1 ; their = [ "foo" ] }
+  ] in
+  let diff5 = { diff with operation = Create "b" ; hunks = hunk5 } in
+  let hunk6 = [
+    { mine_start = 0 ; mine_len = 1 ; mine = [ "foo" ] ;
+      their_start = 0 ; their_len = 0 ; their = [ ] }
+  ] in
+  let diff6 = { diff with operation = Delete "a" ; hunks = hunk6 } in
+  let hunk7 = [
+    { mine_start = 0 ; mine_len = 1 ; mine = [ "foo" ] ;
+      their_start = 0 ; their_len = 2 ; their = [ "foo" ; "foo" ] }
+  ] in
+  let diff7 = { diff with operation = Rename ("a", "b") ; hunks = hunk7 } in
   List.map (fun d -> [ d ])
     [
       diff ;
       { diff with hunks = hunk2 } ;
       { diff with hunks = hunk3 } ;
-      { diff with hunks = hunk4 }
+      { diff with hunks = hunk4 } ;
+      diff5 ;
+      diff6 ;
+      diff7 ;
     ]
 
 let basic_app = [
-  "foobar\n" ;
-  {|foo
+  Some "foobar\n" ;
+  Some {|foo
 bar
 baz
 boo
@@ -194,7 +232,7 @@ bar
 baz
 boo
 |} ;
-  {|foo
+  Some {|foo
 bar2
 baz
 boo
@@ -206,7 +244,7 @@ foo
 bar
 baz3
 |} ;
-  {|foo
+  Some {|foo
 foo
 foo
 foo3
@@ -249,7 +287,14 @@ foo
 foo
 foo
 bar2
-|} ]
+|} ;
+ Some {|foo
+|} ;
+  None ;
+  Some {|foo
+foo
+|}
+]
 
 let basic_parse diff exp () =
   let diffs = Patch.to_diffs diff in
@@ -262,10 +307,9 @@ let parse_diffs =
 
 let basic_apply file diff exp () =
   match Patch.to_diffs diff with
-  | [ diff ] -> begin match Patch.patch (Some file) diff with
-    | Ok data -> Alcotest.(check string __LOC__ exp data)
-    | Error (`Msg m) -> Alcotest.fail m
-    end
+  | [ diff ] ->
+    let res = Patch.patch file diff in
+    Alcotest.(check (option string) __LOC__ exp res)
   | _ -> Alcotest.fail "expected one"
 
 let apply_diffs =
@@ -322,16 +366,15 @@ let multi_hunks =
 
 let multi_files = [ Some "bar" ; Some "baz" ; None ; Some "foobarbaz" ]
 
-let multi_exp = [ "foobar" ; "" ; "baz" ; "foobar" ]
+let multi_exp = [ Some "foobar" ; None ; Some "baz" ; Some "foobar" ]
 
 let multi_apply () =
   let diffs = Patch.to_diffs multi_diff in
   Alcotest.(check int __LOC__ (List.length multi_files) (List.length diffs));
   Alcotest.(check int __LOC__ (List.length multi_exp) (List.length diffs));
   List.iter2 (fun diff (input, expected) ->
-      match Patch.patch input diff with
-      | Ok data -> Alcotest.(check string __LOC__ expected data)
-      | Error (`Msg m) -> Alcotest.fail m)
+      let res = Patch.patch input diff in
+      Alcotest.(check (option string) __LOC__ expected res))
     diffs (List.combine multi_files multi_exp)
 
 let multi_diffs = [
@@ -375,12 +418,11 @@ let parse_real_diff_headers =
 let regression_test name () =
   let old = opt_read (name ^ ".old") in
   let diff = read (name ^ ".diff") in
-  let exp = read (name ^ ".new") in
+  let exp = opt_read (name ^ ".new") in
   match Patch.to_diffs diff with
-  | [ diff ] -> begin match Patch.patch old diff with
-    | Ok data -> Alcotest.(check string __LOC__ exp data)
-    | Error (`Msg m) -> Alcotest.fail m
-    end
+  | [ diff ] ->
+    let res = Patch.patch old diff in
+    Alcotest.(check (option string) __LOC__ exp res)
   | ds -> Alcotest.fail ("expected one, found " ^ string_of_int (List.length ds))
 
 module S = Set.Make(String)

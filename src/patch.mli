@@ -31,4 +31,4 @@ val pp : git:bool -> Format.formatter -> t -> unit
 
 val to_diffs : string -> t list
 
-val patch : string option -> t -> (string, [> `Msg of string ]) result
+val patch : string option -> t -> string option

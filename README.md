@@ -31,7 +31,11 @@ diff := mine theirs hunk+
 In addition, some support for the git diff format is available, which contains
 `diff --git a/nn b/nn` as separator, prefixes filenames with `a/` and `b/`, and
 may contain extra headers, especially for pure renaming: `rename from <path>`
-followed by `rename to <path>`.
+followed by `rename to <path>`. The git diff documentation also mentions that a
+diff file itself should be an atomic operation, thus all `-` files corrspond to
+the files before applying the diff (since `patch` only does single diff
+operations, and requires the old content as input). You have to ensure to
+provide the correct data yourself.
 
 A `diff` consists of a two-line header containing the filenames (or "/dev/null"
 for creation and deletion) followed by the actual changes in hunks. A complete
@@ -63,6 +67,13 @@ type t = {
   their_no_nl : bool ;
 }
 ```
+
+## Shortcomings
+
+The function `patch` assumes that the patch applies cleanly, and does not
+check this assumption. Exceptions may be raised if this assumption is violated.
+The git diff format allows further features, such as file permissions, and also
+a "copy from / to" header, which I was unable to spot in the wild.
 
 ## Installation
 
