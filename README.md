@@ -77,4 +77,8 @@ a "copy from / to" header, which I was unable to spot in the wild.
 
 ## Installation
 
-`opam pin add patch https://github.com/hannesm/patch`
+`opam install patch`
+
+## Documentation
+
+The API documentation can be browsed [online](https://hannesm.github.io/patch/).
