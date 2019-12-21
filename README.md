@@ -10,7 +10,7 @@ The [test-based infered specification](https://www.artima.com/weblogs/viewpost.j
 implemented in this library is the following grammar.
 
 ```
-decimal := 0-9+
+decimal := [0-9]+
 any := any character except newline
 
 filename := "/dev/null" | any except tab character
@@ -20,12 +20,10 @@ theirs := "+++ " file
 
 no_newline = "\ No newline at end of file"
 hunk_line_prefix := " " | "-" | "+"
-hunk_line := hunk_line_prefix any
-
+hunk_line := hunk_line_prefix any | no_newline
 range := decimal "," decimal | decimal
 hunk_hdr := "@@ -" range " + " range " @@\n"
-
-hunk := hunk_hdr line+ no_newline*
+hunk := hunk_hdr line+
 
 diff := mine theirs hunk+
 ```
