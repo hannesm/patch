@@ -93,13 +93,14 @@ let apply_hunk old (index, to_build) hunk =
 let to_start_len data =
   (* input being "?19,23" *)
   match String.cut ',' (String.slice ~start:1 data) with
-  | None when data = "+1" -> (0, 1)
-  | None when data = "-1" -> (0, 1)
+  | None when data = "+1" || data = "-1" -> (0, 1)
   | None -> invalid_arg ("start_len broken in " ^ data)
   | Some (start, len) ->
-     let start = int_of_string start in
-     let st = if start = 0 then start else pred start in
-     (st, int_of_string len)
+     let len = int_of_string len
+     and start = int_of_string start
+     in
+     let st = if len = 0 || start = 0 then start else pred start in
+     (st, len)
 
 let count_to_sl_sl data =
   if String.is_prefix ~prefix:"@@" data then
