@@ -194,7 +194,7 @@ let pp ppf t =
   pp_operation ppf t.operation ;
   List.iter (pp_hunk ppf) t.hunks
 
-let op mine their =
+let operation_of_strings mine their =
   let get_filename_opt n =
     let s = match String.cut ' ' n with None -> n | Some (x, _) -> x in
     if s = "/dev/null" then
@@ -212,15 +212,15 @@ let op mine their =
 
 let to_diff data =
   (* first locate --- and +++ lines *)
-  let cut4 = String.slice ~start:4 in
   let rec find_start = function
     | [] -> None
-    | x::y::xs when String.is_prefix ~prefix:"---" x -> Some (cut4 x, cut4 y, xs)
+    | x::y::xs when String.is_prefix ~prefix:"---" x ->
+      let mine = String.slice ~start:4 x and their = String.slice ~start:4 y in
+      Some (operation_of_strings mine their, xs)
     | _::xs -> find_start xs
   in
   match find_start data with
-  | Some (mine_name, their_name, rest) ->
-    let operation = op mine_name their_name in
+  | Some (operation, rest) ->
     let hunks, mine_no_nl, their_no_nl, rest = to_hunks (false, false, []) rest in
     Some ({ operation ; hunks ; mine_no_nl ; their_no_nl }, rest)
   | None -> None
