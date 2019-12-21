@@ -356,11 +356,12 @@ let regression_test name () =
     Unix.close fd ;
     Bytes.unsafe_to_string buf
   in
-  let old = read (name ^ ".old") in
+  let opt_read file = try Some (read file) with Unix.Unix_error _ -> None in
+  let old = opt_read (name ^ ".old") in
   let diff = read (name ^ ".diff") in
   let exp = read (name ^ ".new") in
   match Patch.to_diffs diff with
-  | [ diff ] -> begin match Patch.patch (Some old) diff with
+  | [ diff ] -> begin match Patch.patch old diff with
     | Ok data -> Alcotest.(check string __LOC__ exp data)
     | Error (`Msg m) -> Alcotest.fail m
     end
