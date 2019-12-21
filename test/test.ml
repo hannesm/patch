@@ -18,7 +18,7 @@ let patch_eq a b =
   List.length a.hunks = List.length b.hunks &&
   List.for_all (fun h -> List.exists (fun h' -> hunk_eq h h') b.hunks) a.hunks
 
-let test_t = Alcotest.testable Patch.pp patch_eq
+let test_t = Alcotest.testable (Patch.pp ~git:false) patch_eq
 
 let basic_files = [
   "foo\n" ;
@@ -353,7 +353,7 @@ let read file =
 
 let opt_read file = try Some (read file) with Unix.Unix_error _ -> None
 
-let op_test = Alcotest.testable Patch.pp_operation Patch.operation_eq
+let op_test = Alcotest.testable (Patch.pp_operation ~git:false) Patch.operation_eq
 
 let parse_real_diff_header file hdr () =
   let data = read (file ^ ".diff") in
@@ -361,12 +361,16 @@ let parse_real_diff_header file hdr () =
   Alcotest.(check int __LOC__ 1 (List.length diffs));
   Alcotest.check op_test __LOC__ hdr (List.hd diffs).Patch.operation
 
-let parse_real_diff_headers = [
-  "parsing first.diff", `Quick,
-  parse_real_diff_header "first" (Patch.Rename ("first.old", "first.new")) ;
-  "parsing create1.diff", `Quick,
-  parse_real_diff_header "create1" (Patch.Create "a/create1") ;
-]
+let parse_real_diff_headers =
+  List.map (fun (file, hdr) ->
+      "parsing " ^ file ^ ".diff", `Quick, parse_real_diff_header file hdr)
+    [ "first", Patch.Rename ("first.old", "first.new") ;
+      "create1", Patch.Create "a/create1" ;
+      "git1", Patch.Create "git1.new" ;
+      "git2", Patch.Rename_only ("git2.old", "git2.new") ;
+      "git3", Patch.Rename ("git3.old", "git3.new") ;
+      "git4", Patch.Delete "git4.old"
+    ]
 
 let regression_test name () =
   let old = opt_read (name ^ ".old") in
@@ -377,7 +381,7 @@ let regression_test name () =
     | Ok data -> Alcotest.(check string __LOC__ exp data)
     | Error (`Msg m) -> Alcotest.fail m
     end
-  | _ -> Alcotest.fail "expected one"
+  | ds -> Alcotest.fail ("expected one, found " ^ string_of_int (List.length ds))
 
 module S = Set.Make(String)
 

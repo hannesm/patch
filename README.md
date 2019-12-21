@@ -28,6 +28,11 @@ hunk := hunk_hdr line+
 diff := mine theirs hunk+
 ```
 
+In addition, some support for the git diff format is available, which contains
+`diff --git a/nn b/nn` as separator, prefixes filenames with `a/` and `b/`, and
+may contain extra headers, especially for pure renaming: `rename from <path>`
+followed by `rename to <path>`.
+
 A `diff` consists of a two-line header containing the filenames (or "/dev/null"
 for creation and deletion) followed by the actual changes in hunks. A complete
 diff file is represented by a list of `diff` elements. The OCaml types below,
@@ -47,6 +52,7 @@ type operation =
   | Rename of string * string
   | Delete of string
   | Create of string
+  | Rename_only of string * string
 
 type hunk (* positions and contents *)
 
