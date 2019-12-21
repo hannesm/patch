@@ -365,7 +365,7 @@ let parse_real_diff_headers = [
   "parsing first.diff", `Quick,
   parse_real_diff_header "first" (Patch.Rename ("first.old", "first.new")) ;
   "parsing create1.diff", `Quick,
-  parse_real_diff_header "create1" (Patch.Create "create1") ;
+  parse_real_diff_header "create1" (Patch.Create "a/create1") ;
 ]
 
 let regression_test name () =

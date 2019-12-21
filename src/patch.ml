@@ -172,17 +172,17 @@ let operation_eq a b = match a, b with
 
 let pp_operation ppf = function
   | Edit name ->
-    Format.fprintf ppf "--- b/%s\n" name ;
-    Format.fprintf ppf "+++ a/%s\n" name
+    Format.fprintf ppf "--- %s\n" name ;
+    Format.fprintf ppf "+++ %s\n" name
   | Rename (old_name, new_name) ->
-    Format.fprintf ppf "--- b/%s\n" old_name ;
-    Format.fprintf ppf "+++ a/%s\n" new_name
+    Format.fprintf ppf "--- %s\n" old_name ;
+    Format.fprintf ppf "+++ %s\n" new_name
   | Delete name ->
-    Format.fprintf ppf "--- b/%s\n" name ;
+    Format.fprintf ppf "--- %s\n" name ;
     Format.fprintf ppf "+++ /dev/null\n"
   | Create name ->
     Format.fprintf ppf "--- /dev/null\n" ;
-    Format.fprintf ppf "+++ q/%s\n" name
+    Format.fprintf ppf "+++ %s\n" name
 
 type t = {
   operation : operation ;
@@ -198,12 +198,7 @@ let pp ppf t =
 let operation_of_strings mine their =
   let get_filename_opt n =
     let s = match String.cut '\t' n with None -> n | Some (x, _) -> x in
-    if s = "/dev/null" then
-      None
-    else if String.(is_prefix ~prefix:"a/" s || is_prefix ~prefix:"b/" s) then
-      Some (String.slice ~start:2 s)
-    else
-      Some s
+    if s = "/dev/null" then None else Some s
   in
   match get_filename_opt mine, get_filename_opt their with
   | None, Some n -> Create n
