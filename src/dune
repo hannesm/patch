@@ -3,8 +3,7 @@
  (synopsis "Patch purely in OCaml")
  (public_name patch)
  (modules patch)
- (wrapped false)
- (libraries bytes))
+ (wrapped false))
 
 (executable
  (name patch_command)
