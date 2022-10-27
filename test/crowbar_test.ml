@@ -142,10 +142,10 @@ let check_Patch file1 file2 =
   | [diff] ->
     let data = string_of_file file1 in
     match Patch.patch (Some data) diff with
-    | Error (`Msg str) ->
+    | None ->
       let exp = string_of_file file2 in
-      Crowbar.fail (str ^ " input file\n" ^ data ^ "\ndiff\n" ^ text_diff ^ "\nexpected\n" ^ exp)
-    | Ok output ->
+      Crowbar.fail ("input file\n" ^ data ^ "\ndiff\n" ^ text_diff ^ "\nexpected\n" ^ exp)
+    | Some output ->
       let exp = string_of_file file2 in
       if String.equal exp output then
         Crowbar.check_eq

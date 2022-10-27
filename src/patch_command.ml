@@ -22,10 +22,10 @@ let run ~input ~diff =
     exit exit_several_chunks
   | [diff] ->
     begin match Patch.patch (Some input) diff with
-    | Error (`Msg str) ->
-      Printf.eprintf "Error during patching:\n%s\n%!" str;
+    | None ->
+      Printf.eprintf "Error during patching:\n%!";
       exit exit_patch_failure
-    | Ok output -> output
+    | Some output -> output
     end
 
 module IO = struct
