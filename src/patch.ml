@@ -238,12 +238,12 @@ let to_diff data =
   (* first locate --- and +++ lines *)
   let rec find_start git ?hdr = function
     | [] -> hdr, []
-    | x::xs when String.is_prefix ~prefix:"diff --git" x ->
+    | x::xs when String.is_prefix ~prefix:"diff --git " x ->
       begin match hdr with None -> find_start true xs | Some _ -> hdr, x::xs end
-    | x::y::xs when String.is_prefix ~prefix:"rename from" x && String.is_prefix ~prefix:"rename to" y ->
+    | x::y::xs when String.is_prefix ~prefix:"rename from " x && String.is_prefix ~prefix:"rename to " y ->
       let hdr = Rename_only (String.slice ~start:12 x, String.slice ~start:10 y) in
       find_start git ~hdr xs
-    | x::y::xs when String.is_prefix ~prefix:"---" x ->
+    | x::y::xs when String.is_prefix ~prefix:"--- " x ->
       let mine = String.slice ~start:4 x and their = String.slice ~start:4 y in
       Some (operation_of_strings git mine their), xs
     | _::xs -> find_start git ?hdr xs
