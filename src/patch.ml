@@ -41,6 +41,10 @@ module String = struct
   let length = String.length
 
   let equal = String.equal
+
+  let index_from = String.index_from
+
+  let sub = String.sub
 end
 
 type hunk = {
@@ -176,8 +180,9 @@ let no_file = "/dev/null"
 
 let pp_operation ~git ppf op =
   let real_name direction name =
-    if git then name else
+    if git then
       match direction with `Mine -> "a/" ^ name | `Theirs -> "b/" ^ name
+    else name
   in
   let hdr mine their =
     (* even if create/delete, /dev/null is not used in this header *)
@@ -205,8 +210,8 @@ let pp_operation ~git ppf op =
     Format.fprintf ppf "+++ %s\n" (real_name `Theirs name)
   | Rename_only (old_name, new_name) ->
     hdr old_name new_name ;
-    Format.fprintf ppf "rename from %s\n" old_name;
-    Format.fprintf ppf "rename to %s\n" new_name
+    Format.fprintf ppf "rename from %s\n" (String.slice ~start:2 old_name);
+    Format.fprintf ppf "rename to %s\n" (String.slice ~start:2 new_name)
 
 type t = {
   operation : operation ;
@@ -219,36 +224,55 @@ let pp ~git ppf t =
   pp_operation ~git ppf t.operation ;
   List.iter (pp_hunk ppf) t.hunks
 
-let operation_of_strings git mine their =
+let get_filename ~p full =
+  let rec iter idx = function
+    | 0 -> String.sub full idx (String.length full - idx)
+    | p -> iter (String.index_from full idx '/') (p - 1)
+  in
+  try Some (iter 0 p) with Not_found -> None
+
+let operation_of_strings ~p mine their =
+  let open (struct
+    type t =
+      | Dev_null
+      | Ignore
+      | File of string
+  end) in
   let get_filename_opt n =
     let s = match String.cut '\t' n with None -> n | Some (x, _) -> x in
-    if s = no_file then None else
-    if git && (String.is_prefix ~prefix:"a/" s || String.is_prefix ~prefix:"b/" s) then
-      Some (String.slice ~start:2 s)
-    else Some s
+    if s = no_file then Dev_null else
+      match get_filename ~p s with
+      | None -> Ignore
+      | Some x -> File x
   in
   match get_filename_opt mine, get_filename_opt their with
-  | None, Some n -> Create n
-  | Some n, None -> Delete n
-  | Some a, Some b -> if String.equal a b then Edit a else Rename (a, b)
-  | None, None -> assert false (* ??!?? *)
+  | Dev_null, File n -> Some (Create n)
+  | File n, Dev_null -> Some (Delete n)
+  | File a, File b -> Some (if String.equal a b then Edit a else Rename (a, b))
+  | Dev_null, Dev_null | Ignore, _ | _, Ignore -> None
 
 (* parses a list of lines to a diff.t list *)
-let to_diff data =
+let to_diff ~p data =
   (* first locate --- and +++ lines *)
-  let rec find_start git ?hdr = function
+  let rec find_start ?hdr = function
     | [] -> hdr, []
-    | x::xs when String.is_prefix ~prefix:"diff --git " x ->
-      begin match hdr with None -> find_start true xs | Some _ -> hdr, x::xs end
     | x::y::xs when String.is_prefix ~prefix:"rename from " x && String.is_prefix ~prefix:"rename to " y ->
-      let hdr = Rename_only (String.slice ~start:12 x, String.slice ~start:10 y) in
-      find_start git ~hdr xs
+      begin
+        let mf = "a/" ^ String.slice ~start:12 x
+        and tf = "b/" ^ String.slice ~start:10 y
+        in
+        match get_filename ~p mf, get_filename ~p tf with
+        | None, _ | _, None -> find_start xs
+        | Some m, Some t ->
+          let hdr = Rename_only (m, t) in
+          find_start ~hdr xs
+      end
     | x::y::xs when String.is_prefix ~prefix:"--- " x ->
       let mine = String.slice ~start:4 x and their = String.slice ~start:4 y in
-      Some (operation_of_strings git mine their), xs
-    | _::xs -> find_start git ?hdr xs
+      operation_of_strings ~p mine their, xs
+    | _::xs -> find_start ?hdr xs
   in
-  match find_start false data with
+  match find_start data with
   | Some (Rename_only _ as operation), rest ->
     let hunks = [] and mine_no_nl = false and their_no_nl = false in
     Some ({ operation ; hunks ; mine_no_nl ; their_no_nl }, rest)
@@ -260,11 +284,11 @@ let to_diff data =
 
 let to_lines = String.cuts '\n'
 
-let to_diffs data =
+let to_diffs ~p data =
   let lines = to_lines data in
   let rec doit acc = function
     | [] -> List.rev acc
-    | xs -> match to_diff xs with
+    | xs -> match to_diff ~p xs with
       | None -> List.rev acc
       | Some (diff, rest) -> doit (diff :: acc) rest
   in

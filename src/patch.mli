@@ -29,6 +29,6 @@ type t = {
 
 val pp : git:bool -> Format.formatter -> t -> unit
 
-val to_diffs : string -> t list
+val to_diffs : p:int -> string -> t list
 
 val patch : string option -> t -> string option

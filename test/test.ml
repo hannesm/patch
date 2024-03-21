@@ -297,7 +297,7 @@ foo
 ]
 
 let basic_parse diff exp () =
-  let diffs = Patch.to_diffs diff in
+  let diffs = Patch.to_diffs ~p:0 diff in
   Alcotest.(check (list test_t) __LOC__ exp diffs)
 
 let parse_diffs =
@@ -306,7 +306,7 @@ let parse_diffs =
     (List.combine basic_diffs basic_hunks)
 
 let basic_apply file diff exp () =
-  match Patch.to_diffs diff with
+  match Patch.to_diffs ~p:0 diff with
   | [ diff ] ->
     let res = Patch.patch file diff in
     Alcotest.(check (option string) __LOC__ exp res)
@@ -369,7 +369,7 @@ let multi_files = [ Some "bar" ; Some "baz" ; None ; Some "foobarbaz" ]
 let multi_exp = [ Some "foobar" ; None ; Some "baz" ; Some "foobar" ]
 
 let multi_apply () =
-  let diffs = Patch.to_diffs multi_diff in
+  let diffs = Patch.to_diffs ~p:0 multi_diff in
   Alcotest.(check int __LOC__ (List.length multi_files) (List.length diffs));
   Alcotest.(check int __LOC__ (List.length multi_exp) (List.length diffs));
   List.iter2 (fun diff (input, expected) ->
@@ -400,7 +400,7 @@ let op_test = Alcotest.testable (Patch.pp_operation ~git:false) Patch.operation_
 
 let parse_real_diff_header file hdr () =
   let data = read (file ^ ".diff") in
-  let diffs = Patch.to_diffs data in
+  let diffs = Patch.to_diffs ~p:0 data in
   Alcotest.(check int __LOC__ 1 (List.length diffs));
   Alcotest.check op_test __LOC__ hdr (List.hd diffs).Patch.operation
 
@@ -409,17 +409,17 @@ let parse_real_diff_headers =
       "parsing " ^ file ^ ".diff", `Quick, parse_real_diff_header file hdr)
     [ "first", Patch.Rename ("first.old", "first.new") ;
       "create1", Patch.Create "a/create1" ;
-      "git1", Patch.Create "git1.new" ;
-      "git2", Patch.Rename_only ("git2.old", "git2.new") ;
-      "git3", Patch.Rename ("git3.old", "git3.new") ;
-      "git4", Patch.Delete "git4.old"
+      "git1", Patch.Create "b/git1.new" ;
+      "git2", Patch.Rename_only ("a/git2.old", "b/git2.new") ;
+      "git3", Patch.Rename ("a/git3.old", "b/git3.new") ;
+      "git4", Patch.Delete "a/git4.old"
     ]
 
 let regression_test name () =
   let old = opt_read (name ^ ".old") in
   let diff = read (name ^ ".diff") in
   let exp = opt_read (name ^ ".new") in
-  match Patch.to_diffs diff with
+  match Patch.to_diffs ~p:0 diff with
   | [ diff ] ->
     let res = Patch.patch old diff in
     Alcotest.(check (option string) __LOC__ exp res)

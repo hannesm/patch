@@ -6,15 +6,15 @@
 
 let usage =
   "Simplified patch utility for single-file patches;\n
-   ./patch.exe <input-file> <unififed-diff-file> -o <output-file>"
+   ./patch.exe -p<num> <input-file> <unified-diff-file> -o <output-file>"
 
 let exit_command_line_error = 1
 let exit_open_error = 2
 let exit_several_chunks = 3
 let exit_patch_failure = 4
 
-let run ~input ~diff =
-  match Patch.to_diffs diff with
+let run ~p ~input ~diff =
+  match Patch.to_diffs ~p diff with
   | [] -> input
   | _::_::_ ->
     prerr_endline "Error: The diff contains several chunks,\n\
@@ -48,12 +48,17 @@ let () =
     prerr_endline usage;
     exit 0;
   end;
-  let input_path, diff_path, output_path = try
-      let input_path = Sys.argv.(1) in
-      let diff_path = Sys.argv.(2) in
-      let dash_o = Sys.argv.(3) in
-      let output_path = Sys.argv.(4) in
+  let p, input_path, diff_path, output_path = try
+      let p =
+        let arg = Sys.argv.(1) in
+        String.sub arg 2 (String.length arg - 2) |> int_of_string
+      in
+      let input_path = Sys.argv.(2) in
+      let diff_path = Sys.argv.(3) in
+      let dash_o = Sys.argv.(4) in
+      let output_path = Sys.argv.(5) in
       if dash_o <> "-o" then raise Exit;
+      p,
       input_path,
       diff_path,
       output_path
@@ -84,5 +89,5 @@ let () =
   in
   let input_data = get_data input_path in
   let diff_data = get_data diff_path in
-  let output_data = run ~input:input_data ~diff:diff_data in
+  let output_data = run ~p ~input:input_data ~diff:diff_data in
   write_data output_path ~data:output_data
