@@ -11,7 +11,7 @@ type hunk = {
 (** A hunk contains some difference between two files: each with a start line
     and length, and then the content as lists of string. *)
 
-val pp_hunk : Format.formatter -> hunk -> unit
+val pp_hunk : mine_no_nl:bool -> their_no_nl:bool -> Format.formatter -> hunk -> unit
 (** [pp_hunk ppf hunk] pretty-prints the [hunk] on [ppf], the printing is in the
     same format as [diff] does. *)
 
