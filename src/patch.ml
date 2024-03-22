@@ -120,14 +120,24 @@ let sort_into_bags dir mine their m_nl t_nl str =
   if String.length str = 0 then
     None
   else match String.get str 0, String.slice ~start:1 str with
-    | ' ', data -> Some (`Both, (data :: mine), (data :: their), m_nl, t_nl)
-    | '+', data -> Some (`Their, mine, (data :: their), m_nl, t_nl)
-    | '-', data -> Some (`Mine, (data :: mine), their, m_nl, t_nl)
-    | '\\', data ->
+    | ' ', data ->
+        if m_nl || t_nl then
+          failwith "\"no newline at the end of file\" is not at the end of the file";
+        Some (`Both, (data :: mine), (data :: their), m_nl, t_nl)
+    | '+', data ->
+        if t_nl then
+          failwith "\"no newline at the end of file\" is not at the end of the file";
+        Some (`Their, mine, (data :: their), m_nl, t_nl)
+    | '-', data ->
+        if m_nl then
+          failwith "\"no newline at the end of file\" is not at the end of the file";
+        Some (`Mine, (data :: mine), their, m_nl, t_nl)
+    | '\\', _data ->
+      (* NOTE: Any line starting with '\' is taken as if it was
+         '\ No newline at end of file' by GNU patch so we do the same *)
       (* diff: 'No newline at end of file' turns out to be context-sensitive *)
       (* so: -xxx\n\\No newline... means mine didn't have a newline *)
       (* but +xxx\n\\No newline... means theirs doesn't have a newline *)
-      assert (data = " No newline at end of file");
       let my_nl, their_nl = match dir with
         | `Both -> true, true
         | `Mine -> true, t_nl
