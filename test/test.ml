@@ -10,7 +10,7 @@ let hunk_eq a b =
   List.for_all (fun x -> List.mem x b.mine) a.mine &&
   List.for_all (fun x -> List.mem x b.their) a.their
 
-let test_hunk = Alcotest.testable Patch.pp_hunk hunk_eq
+let test_hunk = Alcotest.testable (Patch.pp_hunk ~mine_no_nl:false ~their_no_nl:false) hunk_eq
 
 let patch_eq a b =
   let open Patch in

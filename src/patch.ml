@@ -52,15 +52,18 @@ type hunk = {
   their : string list ;
 }
 
-let unified_diff hunk =
+let unified_diff ~mine_no_nl ~their_no_nl hunk =
+  let no_nl_str = ["\\ No newline at end of file"] in
   (* TODO *)
   String.concat "\n" (List.map (fun line -> "-" ^ line) hunk.mine @
-                      List.map (fun line -> "+" ^ line) hunk.their)
+                      (if mine_no_nl then no_nl_str else []) @
+                      List.map (fun line -> "+" ^ line) hunk.their @
+                      (if their_no_nl then no_nl_str else []))
 
-let pp_hunk ppf hunk =
+let pp_hunk ~mine_no_nl ~their_no_nl ppf hunk =
   Format.fprintf ppf "@@@@ -%d,%d +%d,%d @@@@\n%s"
     hunk.mine_start hunk.mine_len hunk.their_start hunk.their_len
-    (unified_diff hunk)
+    (unified_diff ~mine_no_nl ~their_no_nl hunk)
 
 let take data num =
   let rec take0 num data acc =
@@ -215,9 +218,16 @@ type t = {
   their_no_nl : bool ;
 }
 
-let pp ~git ppf t =
-  pp_operation ~git ppf t.operation ;
-  List.iter (pp_hunk ppf) t.hunks
+let pp ~git ppf {operation; hunks; mine_no_nl; their_no_nl} =
+  pp_operation ~git ppf operation;
+  let rec aux = function
+    | [] -> ()
+    | [x] -> pp_hunk ~mine_no_nl ~their_no_nl ppf x
+    | x::xs ->
+        pp_hunk ~mine_no_nl:false ~their_no_nl:false ppf x;
+        aux xs
+  in
+  aux hunks
 
 let operation_of_strings git mine their =
   let get_filename_opt n =
