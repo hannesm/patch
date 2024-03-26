@@ -338,7 +338,7 @@ let diff_op operation a b =
       {operation; hunks; mine_no_nl; their_no_nl}
     in
     match l1, l2 with
-    | [], [] | [""], [""] when mine = [] && their = [] -> None
+    | [], [] | [""], [""] when mine = [] && their = [] -> assert false
     | [], [] -> Some (create_diff ~mine_no_nl:true ~their_no_nl:true)
     | [""], [] -> Some (create_diff ~mine_no_nl:false ~their_no_nl:true)
     | [], [""] -> Some (create_diff ~mine_no_nl:true ~their_no_nl:false)
@@ -373,4 +373,5 @@ let diff operation a b = match a, b with
   | None, None -> invalid_arg "no input given"
   | None, Some b -> diff_op operation "" b
   | Some a, None -> diff_op operation a ""
+  | Some a, Some b when String.equal a b -> None (* NOTE: Optimization *)
   | Some a, Some b -> diff_op operation a b
