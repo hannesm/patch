@@ -250,6 +250,9 @@ let pp ~git ppf {operation; hunks; mine_no_nl; their_no_nl} =
   in
   aux hunks
 
+let pp_list ~git ppf diffs =
+  List.iter (Format.fprintf ppf "%a" (pp ~git)) diffs
+
 let operation_of_strings git mine their =
   let get_filename_opt n =
     let s = match String.cut '\t' n with None -> n | Some (x, _) -> x in
