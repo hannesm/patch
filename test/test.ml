@@ -382,6 +382,24 @@ let multi_diffs = [
   "multi apply", `Quick, multi_apply ;
 ]
 
+let regression_diff, regression_hunks =
+  let open Patch in
+  {|
+--- a	2024-03-22 20:38:14.411917871 +0000
++++ b	2024-03-22 20:04:53.409348792 +0000
+@@ -1 +1 @@
+--- /dev/null
++aaa
+|},
+  [ { operation = Rename ("a", "b");
+      hunks = [ { mine_start = 0; mine_len = 1; mine = ["-- /dev/null"];
+                  their_start = 0; their_len = 1; their = ["aaa"]} ];
+      mine_no_nl = false; their_no_nl = false} ]
+
+let basic_regression_diffs = [
+  "basic regression parse", `Quick, basic_parse regression_diff regression_hunks ;
+]
+
 let data = "data/"
 
 let read file =
@@ -456,6 +474,7 @@ let tests = [
   "parse", parse_diffs ;
   "apply", apply_diffs ;
   "multiple", multi_diffs ;
+  "regression basic", basic_regression_diffs ;
   "parse real diffs", parse_real_diff_headers ;
   "regression", regression_diffs ;
 ]

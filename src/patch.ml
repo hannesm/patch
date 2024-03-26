@@ -119,39 +119,60 @@ let count_to_sl_sl data =
   else
     None
 
-let sort_into_bags dir mine their m_nl t_nl str =
+let sort_into_bags ~counter:(mine_len, their_len) dir mine their m_nl t_nl str =
   if String.length str = 0 then
-    None
-  else if String.is_prefix ~prefix:"---" str then
+    failwith "invalid patch (empty line)"
+  else if mine_len = 0 && their_len = 0 && String.get str 0 <> '\\' then
     None
   else match String.get str 0, String.slice ~start:1 str with
-    | ' ', data -> Some (`Both, (data :: mine), (data :: their), m_nl, t_nl)
-    | '+', data -> Some (`Their, mine, (data :: their), m_nl, t_nl)
-    | '-', data -> Some (`Mine, (data :: mine), their, m_nl, t_nl)
-    | '\\', data ->
+    | ' ', data ->
+        if m_nl || t_nl then
+          failwith "\"no newline at the end of file\" is not at the end of the file";
+        if mine_len = 0 || their_len = 0 then
+          failwith "invalid patch (both size exhausted)";
+        let counter = (mine_len - 1, their_len - 1) in
+        Some (counter, `Both, (data :: mine), (data :: their), m_nl, t_nl)
+    | '+', data ->
+        if t_nl then
+          failwith "\"no newline at the end of file\" is not at the end of the file";
+        if their_len = 0 then
+          failwith "invalid patch (+ size exhausted)";
+        let counter = (mine_len, their_len - 1) in
+        Some (counter, `Their, mine, (data :: their), m_nl, t_nl)
+    | '-', data ->
+        if m_nl then
+          failwith "\"no newline at the end of file\" is not at the end of the file";
+        if mine_len = 0 then
+          failwith "invalid patch (- size exhausted)";
+        let counter = (mine_len - 1, their_len) in
+        Some (counter, `Mine, (data :: mine), their, m_nl, t_nl)
+    | '\\', _data ->
+      (* NOTE: Any line starting with '\' is taken as if it was
+         '\ No newline at end of file' by GNU patch so we do the same *)
       (* diff: 'No newline at end of file' turns out to be context-sensitive *)
       (* so: -xxx\n\\No newline... means mine didn't have a newline *)
       (* but +xxx\n\\No newline... means theirs doesn't have a newline *)
-      assert (data = " No newline at end of file");
       let my_nl, their_nl = match dir with
         | `Both -> true, true
         | `Mine -> true, t_nl
         | `Their -> m_nl, true
       in
-      Some (dir, mine, their, my_nl, their_nl)
-    | _ -> None
+      let counter = (mine_len, their_len) in
+      Some (counter, dir, mine, their, my_nl, their_nl)
+    | _ -> failwith "invalid patch (unknown character)"
 
 let to_hunk count data mine_no_nl their_no_nl =
   match count_to_sl_sl count with
   | None -> None, mine_no_nl, their_no_nl, count :: data
   | Some ((mine_start, mine_len), (their_start, their_len)) ->
-    let rec step dir mine their mine_no_nl their_no_nl = function
-      | [] -> (List.rev mine, List.rev their, mine_no_nl, their_no_nl, [])
-      | x::xs -> match sort_into_bags dir mine their mine_no_nl their_no_nl x with
-        | Some (dir, mine, their, mine_no_nl', their_no_nl') -> step dir mine their mine_no_nl' their_no_nl' xs
+    let counter = (mine_len, their_len) in
+    let rec step ~counter dir mine their mine_no_nl their_no_nl = function
+      | [] | [""] -> (List.rev mine, List.rev their, mine_no_nl, their_no_nl, [])
+      | x::xs -> match sort_into_bags ~counter dir mine their mine_no_nl their_no_nl x with
+        | Some (counter, dir, mine, their, mine_no_nl', their_no_nl') -> step ~counter dir mine their mine_no_nl' their_no_nl' xs
         | None -> (List.rev mine, List.rev their, mine_no_nl, their_no_nl, x :: xs)
     in
-    let mine, their, mine_no_nl, their_no_nl, rest = step `Both [] [] mine_no_nl their_no_nl data in
+    let mine, their, mine_no_nl, their_no_nl, rest = step ~counter `Both [] [] mine_no_nl their_no_nl data in
     (Some { mine_start ; mine_len ; mine ; their_start ; their_len ; their }, mine_no_nl, their_no_nl, rest)
 
 let rec to_hunks (mine_no_nl, their_no_nl, acc) = function
