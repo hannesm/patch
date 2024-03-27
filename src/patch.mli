@@ -54,3 +54,9 @@ val to_diffs : string -> t list
 val patch : string option -> t -> string option
 (** [patch file_contents diff] applies [diff] on [file_contents], resulting in
     the new file contents (or None if deleted). *)
+
+val diff : operation -> string option -> string option -> t option
+(** [diff operation content_a content_b] creates a diff between
+    [content_a] and [content_b]. Returns [None] if no changes could be detected.
+
+    @raise Invalid_argument if both [content_a] and [content_b] are [None]. *)
