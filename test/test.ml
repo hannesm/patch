@@ -176,7 +176,7 @@ let basic_hunks =
   let hunk1 = [ { mine_start = 0 ; mine_len = 1 ; mine = ["foo"] ;
                   their_start = 0 ; their_len = 1 ; their = ["foobar"] } ]
   in
-  let diff = { operation = Rename ("a", "b") ; hunks = hunk1 ; mine_no_nl = false ; their_no_nl = false } in
+  let diff = { operation = Edit ("a", "b") ; hunks = hunk1 ; mine_no_nl = false ; their_no_nl = false } in
   let hunk2 =
     [ { mine_start = 1 ; mine_len = 7 ; mine = [ "bar" ; "baz" ; "boo" ; "foo" ; "bar" ; "baz" ; "boo" ] ;
         their_start = 1 ; their_len = 7 ; their = [ "bar" ; "baz" ; "boo" ; "foo2" ; "bar" ; "baz" ; "boo" ] } ]
@@ -209,7 +209,7 @@ let basic_hunks =
     { mine_start = 0 ; mine_len = 1 ; mine = [ "foo" ] ;
       their_start = 0 ; their_len = 2 ; their = [ "foo" ; "foo" ] }
   ] in
-  let diff7 = { diff with operation = Rename ("a", "b") ; hunks = hunk7 } in
+  let diff7 = { diff with operation = Edit ("a", "b") ; hunks = hunk7 } in
   List.map (fun d -> [ d ])
     [
       diff ;
@@ -346,7 +346,7 @@ let multi_hunks =
   let hunk1 = [ { mine_start = 0 ; mine_len = 1 ; mine = ["bar"] ;
                   their_start = 0 ; their_len = 1 ; their = ["foobar"] } ]
   in
-  let diff1 = { operation = Rename ("foo", "bar") ; hunks = hunk1 ; mine_no_nl = false ; their_no_nl = false } in
+  let diff1 = { operation = Edit ("foo", "bar") ; hunks = hunk1 ; mine_no_nl = false ; their_no_nl = false } in
   let hunk2 =
     [ { mine_start = 0 ; mine_len = 1 ; mine = [ "baz" ] ;
         their_start = 0 ; their_len = 0 ; their = [] } ]
@@ -361,7 +361,7 @@ let multi_hunks =
     { mine_start = 0 ; mine_len = 1 ; mine = [ "foobarbaz" ] ;
       their_start = 0 ; their_len = 1 ; their = [ "foobar" ] }
   ] in
-  let diff4 = { operation = Edit "foobarbaz" ; hunks = hunk4 ;  mine_no_nl = false ; their_no_nl = false } in
+  let diff4 = { operation = Edit ("foobarbaz", "foobarbaz") ; hunks = hunk4 ;  mine_no_nl = false ; their_no_nl = false } in
   [ diff1 ; diff2 ; diff3 ; diff4 ]
 
 let multi_files = [ Some "bar" ; Some "baz" ; None ; Some "foobarbaz" ]
@@ -391,7 +391,7 @@ let regression_diff, regression_hunks =
 --- /dev/null
 +aaa
 |},
-  [ { operation = Rename ("a", "b");
+  [ { operation = Edit ("a", "b");
       hunks = [ { mine_start = 0; mine_len = 1; mine = ["-- /dev/null"];
                   their_start = 0; their_len = 1; their = ["aaa"]} ];
       mine_no_nl = false; their_no_nl = false} ]
@@ -425,11 +425,11 @@ let parse_real_diff_header file hdr () =
 let parse_real_diff_headers =
   List.map (fun (file, hdr) ->
       "parsing " ^ file ^ ".diff", `Quick, parse_real_diff_header file hdr)
-    [ "first", Patch.Rename ("first.old", "first.new") ;
+    [ "first", Patch.Edit ("first.old", "first.new") ;
       "create1", Patch.Create "a/create1" ;
       "git1", Patch.Create "git1.new" ;
       "git2", Patch.Rename_only ("git2.old", "git2.new") ;
-      "git3", Patch.Rename ("git3.old", "git3.new") ;
+      "git3", Patch.Edit ("git3.old", "git3.new") ;
       "git4", Patch.Delete "git4.old"
     ]
 

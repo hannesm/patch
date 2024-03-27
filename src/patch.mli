@@ -16,8 +16,7 @@ val pp_hunk : mine_no_nl:bool -> their_no_nl:bool -> Format.formatter -> hunk ->
     same format as [diff] does. *)
 
 type operation =
-  | Edit of string
-  | Rename of string * string
+  | Edit of string * string
   | Delete of string
   | Create of string
   | Rename_only of string * string

@@ -182,17 +182,15 @@ let rec to_hunks (mine_no_nl, their_no_nl, acc) = function
     | Some hunk, mine_no_nl, their_no_nl, rest -> to_hunks (mine_no_nl, their_no_nl, hunk :: acc) rest
 
 type operation =
-  | Edit of string
-  | Rename of string * string
+  | Edit of string * string
   | Delete of string
   | Create of string
   | Rename_only of string * string
 
 let operation_eq a b = match a, b with
-  | Edit a, Edit b
   | Delete a, Delete b
   | Create a, Create b -> String.equal a b
-  | Rename (a, a'), Rename (b, b')
+  | Edit (a, a'), Edit (b, b')
   | Rename_only (a, a'), Rename_only (b, b') -> String.equal a b && String.equal a' b'
   | _ -> false
 
@@ -211,11 +209,7 @@ let pp_operation ~git ppf op =
         (real_name `Mine mine) (real_name `Theirs their)
   in
   match op with
-  | Edit name ->
-    hdr name name ;
-    Format.fprintf ppf "--- %s\n" (real_name `Mine name) ;
-    Format.fprintf ppf "+++ %s\n" (real_name `Theirs name)
-  | Rename (old_name, new_name) ->
+  | Edit (old_name, new_name) ->
     hdr old_name new_name ;
     Format.fprintf ppf "--- %s\n" (real_name `Mine old_name) ;
     Format.fprintf ppf "+++ %s\n" (real_name `Theirs new_name)
@@ -264,7 +258,7 @@ let operation_of_strings git mine their =
   match get_filename_opt mine, get_filename_opt their with
   | None, Some n -> Create n
   | Some n, None -> Delete n
-  | Some a, Some b -> if String.equal a b then Edit a else Rename (a, b)
+  | Some a, Some b -> Edit (a, b)
   | None, None -> assert false (* ??!?? *)
 
 (* parses a list of lines to a diff.t list *)
