@@ -9,7 +9,7 @@ license: "ISC"
 
 depends: [
   "ocaml" {>= "4.04.2"}
-  "dune"
+  "dune" {>= "3.0"}
   "alcotest" {with-test & >= "0.7.0"}
   "crowbar" {with-test}
 ]

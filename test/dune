@@ -3,8 +3,8 @@
  (modules test)
  (libraries patch alcotest))
 
-(alias
- (name runtest)
+(rule
+ (alias runtest)
  (deps (source_tree data) (:< test.exe))
  (action (run %{<})))
 
