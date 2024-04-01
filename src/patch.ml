@@ -329,7 +329,7 @@ let diff_op operation a b =
     let create_diff ~mine_no_nl ~their_no_nl =
       let hunks =
         if mine = [] && their = [] then
-          []
+          assert false
         else
           let mine = List.rev mine in
           let their = List.rev their in

@@ -514,6 +514,32 @@ let diff_tests_their_unavailable_mine_no_nl, diff_tests_hunk_their_unavailable_m
 let diff_tests_their_unavailable_none_no_nl, diff_tests_hunk_their_unavailable_none_no_nl =
   diff_tests_their_unavailable_gen ~mine_no_nl:false
 
+let diff_tests_empty_gen ~mine_no_nl ~their_no_nl =
+  let a = if mine_no_nl then "" else "\n"
+  and b = if their_no_nl then "" else "\n" in
+  let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
+  let hunk =
+    if (mine_no_nl && their_no_nl) || (not mine_no_nl && not their_no_nl) then
+      None
+    else
+      let mine_len, mine = if mine_no_nl then 0, [] else 1, [""] in
+      let their_len, their = if their_no_nl then 0, [] else 1, [""] in
+      Some { Patch.operation = Edit ("a", "b");
+             hunks = [ { mine_start = 0; mine_len; mine;
+                         their_start = 0; their_len; their} ];
+             mine_no_nl = false; their_no_nl = false}
+  in
+  diff, hunk
+
+let diff_tests_empty_both_no_nl, diff_tests_hunk_empty_both_no_nl =
+  diff_tests_empty_gen ~mine_no_nl:true ~their_no_nl:true
+let diff_tests_empty_mine_no_nl, diff_tests_hunk_empty_mine_no_nl =
+  diff_tests_empty_gen ~mine_no_nl:true ~their_no_nl:false
+let diff_tests_empty_their_no_nl, diff_tests_hunk_empty_their_no_nl =
+  diff_tests_empty_gen ~mine_no_nl:false ~their_no_nl:true
+let diff_tests_empty_none_no_nl, diff_tests_hunk_empty_none_no_nl =
+  diff_tests_empty_gen ~mine_no_nl:false ~their_no_nl:false
+
 let diff_tests_no_diff_gen ~mine_no_nl ~their_no_nl =
   let a =
 {|aaa
@@ -746,6 +772,10 @@ let unified_diff_creation = [
   "diff (mine unavailable, none no_nl)", `Quick, check_diff  diff_tests_mine_unavailable_none_no_nl diff_tests_hunk_mine_unavailable_none_no_nl;
   "diff (their unavailable, mine no_nl)", `Quick, check_diff diff_tests_their_unavailable_mine_no_nl diff_tests_hunk_their_unavailable_mine_no_nl ;
   "diff (their unavailable, none no_nl)", `Quick, check_diff diff_tests_their_unavailable_none_no_nl diff_tests_hunk_their_unavailable_none_no_nl ;
+  "diff (empty, both no_nl)", `Quick, check_diff diff_tests_empty_both_no_nl diff_tests_hunk_empty_both_no_nl;
+  "diff (empty, mine no_nl)", `Quick, check_diff diff_tests_empty_mine_no_nl diff_tests_hunk_empty_mine_no_nl;
+  "diff (empty, their no_nl)", `Quick, check_diff diff_tests_empty_their_no_nl diff_tests_hunk_empty_their_no_nl;
+  "diff (empty, none no_nl)", `Quick, check_diff diff_tests_empty_none_no_nl diff_tests_hunk_empty_none_no_nl;
   "diff (no diff, both no_nl)", `Quick, check_diff diff_tests_no_diff_both_no_nl diff_tests_hunk_no_diff_both_no_nl ;
   "diff (no diff, mine no_nl)", `Quick, check_diff diff_tests_no_diff_mine_no_nl diff_tests_hunk_no_diff_mine_no_nl ;
   "diff (no diff, their no_nl)", `Quick, check_diff diff_tests_no_diff_their_no_nl diff_tests_hunk_no_diff_their_no_nl ;
