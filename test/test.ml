@@ -768,42 +768,42 @@ let check_diff diff1 diff2 () =
   Alcotest.(check (option test_t) __LOC__ diff1 diff2)
 
 let unified_diff_creation = [
-  "diff (mine unavailable, their no_nl)", `Quick, check_diff diff_tests_mine_unavailable_their_no_nl diff_tests_hunk_mine_unavailable_their_no_nl ;
-  "diff (mine unavailable, none no_nl)", `Quick, check_diff  diff_tests_mine_unavailable_none_no_nl diff_tests_hunk_mine_unavailable_none_no_nl;
-  "diff (their unavailable, mine no_nl)", `Quick, check_diff diff_tests_their_unavailable_mine_no_nl diff_tests_hunk_their_unavailable_mine_no_nl ;
-  "diff (their unavailable, none no_nl)", `Quick, check_diff diff_tests_their_unavailable_none_no_nl diff_tests_hunk_their_unavailable_none_no_nl ;
-  "diff (empty, both no_nl)", `Quick, check_diff diff_tests_empty_both_no_nl diff_tests_hunk_empty_both_no_nl;
-  "diff (empty, mine no_nl)", `Quick, check_diff diff_tests_empty_mine_no_nl diff_tests_hunk_empty_mine_no_nl;
-  "diff (empty, their no_nl)", `Quick, check_diff diff_tests_empty_their_no_nl diff_tests_hunk_empty_their_no_nl;
-  "diff (empty, none no_nl)", `Quick, check_diff diff_tests_empty_none_no_nl diff_tests_hunk_empty_none_no_nl;
-  "diff (no diff, both no_nl)", `Quick, check_diff diff_tests_no_diff_both_no_nl diff_tests_hunk_no_diff_both_no_nl ;
-  "diff (no diff, mine no_nl)", `Quick, check_diff diff_tests_no_diff_mine_no_nl diff_tests_hunk_no_diff_mine_no_nl ;
-  "diff (no diff, their no_nl)", `Quick, check_diff diff_tests_no_diff_their_no_nl diff_tests_hunk_no_diff_their_no_nl ;
-  "diff (no diff, none no_nl)", `Quick, check_diff diff_tests_no_diff_none_no_nl diff_tests_hunk_no_diff_none_no_nl ;
-  "diff (middle, same size, both no_nl)", `Quick, check_diff diff_tests_middle_same_size_both_no_nl diff_tests_hunk_middle_same_size_both_no_nl ;
-  "diff (middle, same size, mine no_nl)", `Quick, check_diff  diff_tests_middle_same_size_mine_no_nl diff_tests_hunk_middle_same_size_mine_no_nl;
-  "diff (middle, same size, their no_nl)", `Quick, check_diff diff_tests_middle_same_size_their_no_nl diff_tests_hunk_middle_same_size_their_no_nl ;
-  "diff (middle, same size, none no_nl)", `Quick, check_diff diff_tests_middle_same_size_none_no_nl diff_tests_hunk_middle_same_size_none_no_nl ;
-  "diff (middle, diff size, both no_nl)", `Quick, check_diff diff_tests_middle_diff_size_both_no_nl diff_tests_hunk_middle_diff_size_both_no_nl ;
-  "diff (middle, diff size, mine no_nl)", `Quick, check_diff diff_tests_middle_diff_size_mine_no_nl diff_tests_hunk_middle_diff_size_mine_no_nl ;
-  "diff (middle, diff size, their no_nl)", `Quick, check_diff diff_tests_middle_diff_size_their_no_nl diff_tests_hunk_middle_diff_size_their_no_nl ;
-  "diff (middle, diff size, none no_nl)", `Quick, check_diff diff_tests_middle_diff_size_none_no_nl diff_tests_hunk_middle_diff_size_none_no_nl ;
-  "diff (beginning, same size, both no_nl)", `Quick, check_diff diff_tests_beginning_same_size_both_no_nl diff_tests_hunk_beginning_same_size_both_no_nl ;
-  "diff (beginning, same size, mine no_nl)", `Quick, check_diff diff_tests_beginning_same_size_mine_no_nl diff_tests_hunk_beginning_same_size_mine_no_nl ;
-  "diff (beginning, same size, their no_nl)", `Quick, check_diff diff_tests_beginning_same_size_their_no_nl diff_tests_hunk_beginning_same_size_their_no_nl ;
-  "diff (beginning, same size, none no_nl)", `Quick, check_diff diff_tests_beginning_same_size_none_no_nl diff_tests_hunk_beginning_same_size_none_no_nl ;
-  "diff (beginning, diff size, both no_nl)", `Quick, check_diff diff_tests_beginning_diff_size_both_no_nl diff_tests_hunk_beginning_diff_size_both_no_nl ;
-  "diff (beginning, diff size, mine no_nl)", `Quick, check_diff diff_tests_beginning_diff_size_mine_no_nl diff_tests_hunk_beginning_diff_size_mine_no_nl ;
-  "diff (beginning, diff size, their no_nl)", `Quick, check_diff diff_tests_beginning_diff_size_their_no_nl diff_tests_hunk_beginning_diff_size_their_no_nl ;
-  "diff (beginning, diff size, none no_nl)", `Quick, check_diff diff_tests_beginning_diff_size_none_no_nl diff_tests_hunk_beginning_diff_size_none_no_nl ;
-  "diff (end, same size, both no_nl)", `Quick, check_diff diff_tests_end_same_size_both_no_nl diff_tests_hunk_end_same_size_both_no_nl ;
-  "diff (end, same size, mine no_nl)", `Quick, check_diff diff_tests_end_same_size_mine_no_nl diff_tests_hunk_end_same_size_mine_no_nl ;
-  "diff (end, same size, their no_nl)", `Quick, check_diff diff_tests_end_same_size_their_no_nl diff_tests_hunk_end_same_size_their_no_nl ;
-  "diff (end, same size, none no_nl)", `Quick, check_diff diff_tests_end_same_size_none_no_nl diff_tests_hunk_end_same_size_none_no_nl ;
-  "diff (end, diff size, both no_nl)", `Quick, check_diff diff_tests_end_diff_size_both_no_nl diff_tests_hunk_end_diff_size_both_no_nl ;
-  "diff (end, diff size, mine no_nl)", `Quick, check_diff diff_tests_end_diff_size_mine_no_nl diff_tests_hunk_end_diff_size_mine_no_nl ;
-  "diff (end, diff size, their no_nl)", `Quick, check_diff diff_tests_end_diff_size_their_no_nl diff_tests_hunk_end_diff_size_their_no_nl ;
-  "diff (end, diff size, none no_nl)", `Quick, check_diff diff_tests_end_diff_size_none_no_nl diff_tests_hunk_end_diff_size_none_no_nl ;
+  "mine unavailable, their no_nl", `Quick, check_diff diff_tests_mine_unavailable_their_no_nl diff_tests_hunk_mine_unavailable_their_no_nl ;
+  "mine unavailable, none no_nl", `Quick, check_diff  diff_tests_mine_unavailable_none_no_nl diff_tests_hunk_mine_unavailable_none_no_nl;
+  "their unavailable, mine no_nl", `Quick, check_diff diff_tests_their_unavailable_mine_no_nl diff_tests_hunk_their_unavailable_mine_no_nl ;
+  "their unavailable, none no_nl", `Quick, check_diff diff_tests_their_unavailable_none_no_nl diff_tests_hunk_their_unavailable_none_no_nl ;
+  "empty, both no_nl", `Quick, check_diff diff_tests_empty_both_no_nl diff_tests_hunk_empty_both_no_nl;
+  "empty, mine no_nl", `Quick, check_diff diff_tests_empty_mine_no_nl diff_tests_hunk_empty_mine_no_nl;
+  "empty, their no_nl", `Quick, check_diff diff_tests_empty_their_no_nl diff_tests_hunk_empty_their_no_nl;
+  "empty, none no_nl", `Quick, check_diff diff_tests_empty_none_no_nl diff_tests_hunk_empty_none_no_nl;
+  "no diff, both no_nl", `Quick, check_diff diff_tests_no_diff_both_no_nl diff_tests_hunk_no_diff_both_no_nl ;
+  "no diff, mine no_nl", `Quick, check_diff diff_tests_no_diff_mine_no_nl diff_tests_hunk_no_diff_mine_no_nl ;
+  "no diff, their no_nl", `Quick, check_diff diff_tests_no_diff_their_no_nl diff_tests_hunk_no_diff_their_no_nl ;
+  "no diff, none no_nl", `Quick, check_diff diff_tests_no_diff_none_no_nl diff_tests_hunk_no_diff_none_no_nl ;
+  "middle, same size, both no_nl", `Quick, check_diff diff_tests_middle_same_size_both_no_nl diff_tests_hunk_middle_same_size_both_no_nl ;
+  "middle, same size, mine no_nl", `Quick, check_diff  diff_tests_middle_same_size_mine_no_nl diff_tests_hunk_middle_same_size_mine_no_nl;
+  "middle, same size, their no_nl", `Quick, check_diff diff_tests_middle_same_size_their_no_nl diff_tests_hunk_middle_same_size_their_no_nl ;
+  "middle, same size, none no_nl", `Quick, check_diff diff_tests_middle_same_size_none_no_nl diff_tests_hunk_middle_same_size_none_no_nl ;
+  "middle, diff size, both no_nl", `Quick, check_diff diff_tests_middle_diff_size_both_no_nl diff_tests_hunk_middle_diff_size_both_no_nl ;
+  "middle, diff size, mine no_nl", `Quick, check_diff diff_tests_middle_diff_size_mine_no_nl diff_tests_hunk_middle_diff_size_mine_no_nl ;
+  "middle, diff size, their no_nl", `Quick, check_diff diff_tests_middle_diff_size_their_no_nl diff_tests_hunk_middle_diff_size_their_no_nl ;
+  "middle, diff size, none no_nl", `Quick, check_diff diff_tests_middle_diff_size_none_no_nl diff_tests_hunk_middle_diff_size_none_no_nl ;
+  "beginning, same size, both no_nl", `Quick, check_diff diff_tests_beginning_same_size_both_no_nl diff_tests_hunk_beginning_same_size_both_no_nl ;
+  "beginning, same size, mine no_nl", `Quick, check_diff diff_tests_beginning_same_size_mine_no_nl diff_tests_hunk_beginning_same_size_mine_no_nl ;
+  "beginning, same size, their no_nl", `Quick, check_diff diff_tests_beginning_same_size_their_no_nl diff_tests_hunk_beginning_same_size_their_no_nl ;
+  "beginning, same size, none no_nl", `Quick, check_diff diff_tests_beginning_same_size_none_no_nl diff_tests_hunk_beginning_same_size_none_no_nl ;
+  "beginning, diff size, both no_nl", `Quick, check_diff diff_tests_beginning_diff_size_both_no_nl diff_tests_hunk_beginning_diff_size_both_no_nl ;
+  "beginning, diff size, mine no_nl", `Quick, check_diff diff_tests_beginning_diff_size_mine_no_nl diff_tests_hunk_beginning_diff_size_mine_no_nl ;
+  "beginning, diff size, their no_nl", `Quick, check_diff diff_tests_beginning_diff_size_their_no_nl diff_tests_hunk_beginning_diff_size_their_no_nl ;
+  "beginning, diff size, none no_nl", `Quick, check_diff diff_tests_beginning_diff_size_none_no_nl diff_tests_hunk_beginning_diff_size_none_no_nl ;
+  "end, same size, both no_nl", `Quick, check_diff diff_tests_end_same_size_both_no_nl diff_tests_hunk_end_same_size_both_no_nl ;
+  "end, same size, mine no_nl", `Quick, check_diff diff_tests_end_same_size_mine_no_nl diff_tests_hunk_end_same_size_mine_no_nl ;
+  "end, same size, their no_nl", `Quick, check_diff diff_tests_end_same_size_their_no_nl diff_tests_hunk_end_same_size_their_no_nl ;
+  "end, same size, none no_nl", `Quick, check_diff diff_tests_end_same_size_none_no_nl diff_tests_hunk_end_same_size_none_no_nl ;
+  "end, diff size, both no_nl", `Quick, check_diff diff_tests_end_diff_size_both_no_nl diff_tests_hunk_end_diff_size_both_no_nl ;
+  "end, diff size, mine no_nl", `Quick, check_diff diff_tests_end_diff_size_mine_no_nl diff_tests_hunk_end_diff_size_mine_no_nl ;
+  "end, diff size, their no_nl", `Quick, check_diff diff_tests_end_diff_size_their_no_nl diff_tests_hunk_end_diff_size_their_no_nl ;
+  "end, diff size, none no_nl", `Quick, check_diff diff_tests_end_diff_size_none_no_nl diff_tests_hunk_end_diff_size_none_no_nl ;
 ]
 
 let tests = [
