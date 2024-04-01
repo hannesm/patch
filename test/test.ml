@@ -534,8 +534,8 @@ eee|}^(if their_no_nl then "" else "\n")
       None
     else
       Some { Patch.operation = Edit ("a", "b");
-             hunks = [ { mine_start = 5; mine_len = (if mine_no_nl then 0 else 1); mine = (if mine_no_nl then [] else [""]);
-                         their_start = 5; their_len = (if their_no_nl then 0 else 1); their = (if their_no_nl then [] else [""])} ];
+             hunks = [ { mine_start = 4; mine_len = 1; mine = ["eee"];
+                         their_start = 4; their_len = 1; their = ["eee"]} ];
              mine_no_nl; their_no_nl}
   in
   diff, hunk

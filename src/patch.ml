@@ -343,6 +343,16 @@ let diff_op operation a b =
     | [""], [] -> Some (create_diff ~mine_no_nl:false ~their_no_nl:true)
     | [], [""] -> Some (create_diff ~mine_no_nl:true ~their_no_nl:false)
     | [""], [""] -> Some (create_diff ~mine_no_nl:false ~their_no_nl:false)
+    | [a; ""], [b] when b <> "" ->
+        aux
+          ~mine_start ~mine_len:(mine_len + 1) ~mine:(a :: mine)
+          ~their_start ~their_len:(their_len + 1) ~their:(b :: their)
+          [""] []
+    | [a], [b; ""] when a <> "" ->
+        aux
+          ~mine_start ~mine_len:(mine_len + 1) ~mine:(a :: mine)
+          ~their_start ~their_len:(their_len + 1) ~their:(b :: their)
+          [] [""]
     | a::l1, ([] | [""]) ->
         aux
           ~mine_start ~mine_len:(mine_len + 1) ~mine:(a :: mine)
