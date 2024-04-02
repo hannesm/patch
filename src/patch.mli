@@ -48,8 +48,8 @@ val pp_list : git:bool -> Format.formatter -> t list -> unit
 (** [pp ~git ppf diffs] pretty-prints [diffs] on [ppf]. If [git] is true, "git diff"
     style will be printed. *)
 
-val to_diffs : string -> t list
-(** [to_diffs data] decodes [data] as a list of diffs. *)
+val parse : string -> t list
+(** [parse data] decodes [data] as a list of diffs. *)
 
 val patch : string option -> t -> string option
 (** [patch file_contents diff] applies [diff] on [file_contents], resulting in
