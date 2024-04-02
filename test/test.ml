@@ -10,8 +10,6 @@ let hunk_eq a b =
   List.for_all (fun x -> List.mem x b.mine) a.mine &&
   List.for_all (fun x -> List.mem x b.their) a.their
 
-let test_hunk = Alcotest.testable (Patch.pp_hunk ~mine_no_nl:false ~their_no_nl:false) hunk_eq
-
 let patch_eq a b =
   let open Patch in
   operation_eq a.operation b.operation &&
@@ -470,6 +468,344 @@ let regression_diffs =
   let tests = List.fold_left (fun acc file -> S.add (drop_ext file) acc) S.empty files in
   List.map (fun test -> "regression " ^ test, `Quick, regression_test test) (S.elements tests)
 
+let diff_tests_mine_unavailable_gen ~their_no_nl =
+  let a = None
+  and b =
+{|aaa
+bbb
+ccc
+ddd
+eee|}^(if their_no_nl then "" else "\n")
+  in
+  let diff = Patch.diff (Create "b") a (Some b) in
+  let hunk =
+    { Patch.operation = Create "b";
+      hunks = [ { mine_start = 0; mine_len = 0; mine = [];
+                  their_start = 0; their_len = 5; their = ["aaa"; "bbb"; "ccc"; "ddd"; "eee"]} ];
+      mine_no_nl = false; their_no_nl}
+  in
+  diff, Some hunk
+
+let diff_tests_mine_unavailable_their_no_nl, diff_tests_hunk_mine_unavailable_their_no_nl =
+  diff_tests_mine_unavailable_gen ~their_no_nl:true
+let diff_tests_mine_unavailable_none_no_nl, diff_tests_hunk_mine_unavailable_none_no_nl =
+  diff_tests_mine_unavailable_gen ~their_no_nl:false
+
+let diff_tests_their_unavailable_gen ~mine_no_nl =
+  let a =
+{|aaa
+bbb
+ccc
+ddd
+eee|}^(if mine_no_nl then "" else "\n")
+  and b = None
+  in
+  let diff = Patch.diff (Delete "a") (Some a) b in
+  let hunk =
+    { Patch.operation = Delete "a";
+      hunks = [ { mine_start = 0; mine_len = 5; mine = ["aaa"; "bbb"; "ccc"; "ddd"; "eee"];
+                  their_start = 0; their_len = 0; their = []} ];
+      mine_no_nl; their_no_nl = false}
+  in
+  diff, Some hunk
+
+let diff_tests_their_unavailable_mine_no_nl, diff_tests_hunk_their_unavailable_mine_no_nl =
+  diff_tests_their_unavailable_gen ~mine_no_nl:true
+let diff_tests_their_unavailable_none_no_nl, diff_tests_hunk_their_unavailable_none_no_nl =
+  diff_tests_their_unavailable_gen ~mine_no_nl:false
+
+let diff_tests_empty_gen ~mine_no_nl ~their_no_nl =
+  let a = if mine_no_nl then "" else "\n"
+  and b = if their_no_nl then "" else "\n" in
+  let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
+  let hunk =
+    if (mine_no_nl && their_no_nl) || (not mine_no_nl && not their_no_nl) then
+      None
+    else
+      let mine_len, mine = if mine_no_nl then 0, [] else 1, [""] in
+      let their_len, their = if their_no_nl then 0, [] else 1, [""] in
+      Some { Patch.operation = Edit ("a", "b");
+             hunks = [ { mine_start = 0; mine_len; mine;
+                         their_start = 0; their_len; their} ];
+             mine_no_nl = false; their_no_nl = false}
+  in
+  diff, hunk
+
+let diff_tests_empty_both_no_nl, diff_tests_hunk_empty_both_no_nl =
+  diff_tests_empty_gen ~mine_no_nl:true ~their_no_nl:true
+let diff_tests_empty_mine_no_nl, diff_tests_hunk_empty_mine_no_nl =
+  diff_tests_empty_gen ~mine_no_nl:true ~their_no_nl:false
+let diff_tests_empty_their_no_nl, diff_tests_hunk_empty_their_no_nl =
+  diff_tests_empty_gen ~mine_no_nl:false ~their_no_nl:true
+let diff_tests_empty_none_no_nl, diff_tests_hunk_empty_none_no_nl =
+  diff_tests_empty_gen ~mine_no_nl:false ~their_no_nl:false
+
+let diff_tests_no_diff_gen ~mine_no_nl ~their_no_nl =
+  let a =
+{|aaa
+bbb
+ccc
+ddd
+eee|}^(if mine_no_nl then "" else "\n")
+  and b =
+{|aaa
+bbb
+ccc
+ddd
+eee|}^(if their_no_nl then "" else "\n")
+  in
+  let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
+  let hunk =
+    if (mine_no_nl && their_no_nl) || (not mine_no_nl && not their_no_nl) then
+      None
+    else
+      Some { Patch.operation = Edit ("a", "b");
+             hunks = [ { mine_start = 4; mine_len = 1; mine = ["eee"];
+                         their_start = 4; their_len = 1; their = ["eee"]} ];
+             mine_no_nl; their_no_nl}
+  in
+  diff, hunk
+
+let diff_tests_no_diff_both_no_nl, diff_tests_hunk_no_diff_both_no_nl =
+  diff_tests_no_diff_gen ~mine_no_nl:true ~their_no_nl:true
+let diff_tests_no_diff_mine_no_nl, diff_tests_hunk_no_diff_mine_no_nl =
+  diff_tests_no_diff_gen ~mine_no_nl:true ~their_no_nl:false
+let diff_tests_no_diff_their_no_nl, diff_tests_hunk_no_diff_their_no_nl =
+  diff_tests_no_diff_gen ~mine_no_nl:false ~their_no_nl:true
+let diff_tests_no_diff_none_no_nl, diff_tests_hunk_no_diff_none_no_nl =
+  diff_tests_no_diff_gen ~mine_no_nl:false ~their_no_nl:false
+
+let diff_tests_middle_same_size_gen ~mine_no_nl ~their_no_nl =
+  let a =
+{|aaa
+bbb
+ccc
+ddd
+eee|}^(if mine_no_nl then "" else "\n")
+  and b =
+{|aaa
+bbb
+test1
+test2
+eee|}^(if their_no_nl then "" else "\n")
+  in
+  let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
+  let hunk =
+    { Patch.operation = Edit ("a", "b");
+      hunks = [ { mine_start = 2; mine_len = 3; mine = ["ccc"; "ddd"; "eee"];
+                  their_start = 2; their_len = 3; their = ["test1"; "test2"; "eee"]} ];
+      mine_no_nl; their_no_nl}
+  in
+  diff, Some hunk
+
+let diff_tests_middle_same_size_both_no_nl, diff_tests_hunk_middle_same_size_both_no_nl =
+  diff_tests_middle_same_size_gen ~mine_no_nl:true ~their_no_nl:true
+let diff_tests_middle_same_size_mine_no_nl, diff_tests_hunk_middle_same_size_mine_no_nl =
+  diff_tests_middle_same_size_gen ~mine_no_nl:true ~their_no_nl:false
+let diff_tests_middle_same_size_their_no_nl, diff_tests_hunk_middle_same_size_their_no_nl =
+  diff_tests_middle_same_size_gen ~mine_no_nl:false ~their_no_nl:true
+let diff_tests_middle_same_size_none_no_nl, diff_tests_hunk_middle_same_size_none_no_nl =
+  diff_tests_middle_same_size_gen ~mine_no_nl:false ~their_no_nl:false
+
+let diff_tests_middle_diff_size_gen ~mine_no_nl ~their_no_nl =
+  let a =
+{|aaa
+bbb
+ccc
+ddd
+eee|}^(if mine_no_nl then "" else "\n")
+  and b =
+{|aaa
+bbb
+test1
+eee|}^(if their_no_nl then "" else "\n")
+  in
+  let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
+  let hunk =
+    { Patch.operation = Edit ("a", "b");
+      hunks = [ { mine_start = 2; mine_len = 3; mine = ["ccc"; "ddd"; "eee"];
+                  their_start = 2; their_len = 2; their = ["test1"; "eee"]} ];
+      mine_no_nl; their_no_nl}
+  in
+  diff, Some hunk
+
+let diff_tests_middle_diff_size_both_no_nl, diff_tests_hunk_middle_diff_size_both_no_nl =
+  diff_tests_middle_diff_size_gen ~mine_no_nl:true ~their_no_nl:true
+let diff_tests_middle_diff_size_mine_no_nl, diff_tests_hunk_middle_diff_size_mine_no_nl =
+  diff_tests_middle_diff_size_gen ~mine_no_nl:true ~their_no_nl:false
+let diff_tests_middle_diff_size_their_no_nl, diff_tests_hunk_middle_diff_size_their_no_nl =
+  diff_tests_middle_diff_size_gen ~mine_no_nl:false ~their_no_nl:true
+let diff_tests_middle_diff_size_none_no_nl, diff_tests_hunk_middle_diff_size_none_no_nl =
+  diff_tests_middle_diff_size_gen ~mine_no_nl:false ~their_no_nl:false
+
+let diff_tests_beginning_same_size_gen ~mine_no_nl ~their_no_nl =
+  let a =
+{|aaa
+bbb
+ccc
+ddd
+eee|}^(if mine_no_nl then "" else "\n")
+  and b =
+{|test1
+bbb
+ccc
+ddd
+eee|}^(if their_no_nl then "" else "\n")
+  in
+  let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
+  let hunk =
+    { Patch.operation = Edit ("a", "b");
+      hunks = [ { mine_start = 0; mine_len = 5; mine = ["aaa"; "bbb"; "ccc"; "ddd"; "eee"];
+                  their_start = 0; their_len = 5; their = ["test1"; "bbb"; "ccc"; "ddd"; "eee"]} ];
+      mine_no_nl; their_no_nl}
+  in
+  diff, Some hunk
+
+let diff_tests_beginning_same_size_both_no_nl, diff_tests_hunk_beginning_same_size_both_no_nl =
+  diff_tests_beginning_same_size_gen ~mine_no_nl:true ~their_no_nl:true
+let diff_tests_beginning_same_size_mine_no_nl, diff_tests_hunk_beginning_same_size_mine_no_nl =
+  diff_tests_beginning_same_size_gen ~mine_no_nl:true ~their_no_nl:false
+let diff_tests_beginning_same_size_their_no_nl, diff_tests_hunk_beginning_same_size_their_no_nl =
+  diff_tests_beginning_same_size_gen ~mine_no_nl:false ~their_no_nl:true
+let diff_tests_beginning_same_size_none_no_nl, diff_tests_hunk_beginning_same_size_none_no_nl =
+  diff_tests_beginning_same_size_gen ~mine_no_nl:false ~their_no_nl:false
+
+let diff_tests_beginning_diff_size_gen ~mine_no_nl ~their_no_nl =
+  let a =
+{|aaa
+bbb
+ccc
+ddd
+eee|}^(if mine_no_nl then "" else "\n")
+  and b =
+{|test1
+ccc
+ddd
+eee|}^(if their_no_nl then "" else "\n")
+  in
+  let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
+  let hunk =
+    { Patch.operation = Edit ("a", "b");
+      hunks = [ { mine_start = 0; mine_len = 5; mine = ["aaa"; "bbb"; "ccc"; "ddd"; "eee"];
+                  their_start = 0; their_len = 4; their = ["test1"; "ccc"; "ddd"; "eee"]} ];
+      mine_no_nl; their_no_nl}
+  in
+  diff, Some hunk
+
+let diff_tests_beginning_diff_size_both_no_nl, diff_tests_hunk_beginning_diff_size_both_no_nl =
+  diff_tests_beginning_diff_size_gen ~mine_no_nl:true ~their_no_nl:true
+let diff_tests_beginning_diff_size_mine_no_nl, diff_tests_hunk_beginning_diff_size_mine_no_nl =
+  diff_tests_beginning_diff_size_gen ~mine_no_nl:true ~their_no_nl:false
+let diff_tests_beginning_diff_size_their_no_nl, diff_tests_hunk_beginning_diff_size_their_no_nl =
+  diff_tests_beginning_diff_size_gen ~mine_no_nl:false ~their_no_nl:true
+let diff_tests_beginning_diff_size_none_no_nl, diff_tests_hunk_beginning_diff_size_none_no_nl =
+  diff_tests_beginning_diff_size_gen ~mine_no_nl:false ~their_no_nl:false
+
+let diff_tests_end_same_size_gen ~mine_no_nl ~their_no_nl =
+  let a =
+{|aaa
+bbb
+ccc
+ddd
+eee|}^(if mine_no_nl then "" else "\n")
+  and b =
+{|aaa
+bbb
+ccc
+ddd
+test1|}^(if their_no_nl then "" else "\n")
+  in
+  let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
+  let hunk =
+    { Patch.operation = Edit ("a", "b");
+      hunks = [ { mine_start = 4; mine_len = 1; mine = ["eee"];
+                  their_start = 4; their_len = 1; their = ["test1"]} ];
+      mine_no_nl; their_no_nl}
+  in
+  diff, Some hunk
+
+let diff_tests_end_same_size_both_no_nl, diff_tests_hunk_end_same_size_both_no_nl =
+  diff_tests_end_same_size_gen ~mine_no_nl:true ~their_no_nl:true
+let diff_tests_end_same_size_mine_no_nl, diff_tests_hunk_end_same_size_mine_no_nl =
+  diff_tests_end_same_size_gen ~mine_no_nl:true ~their_no_nl:false
+let diff_tests_end_same_size_their_no_nl, diff_tests_hunk_end_same_size_their_no_nl =
+  diff_tests_end_same_size_gen ~mine_no_nl:false ~their_no_nl:true
+let diff_tests_end_same_size_none_no_nl, diff_tests_hunk_end_same_size_none_no_nl =
+  diff_tests_end_same_size_gen ~mine_no_nl:false ~their_no_nl:false
+
+let diff_tests_end_diff_size_gen ~mine_no_nl ~their_no_nl =
+  let a =
+{|aaa
+bbb
+ccc
+ddd
+eee|}^(if mine_no_nl then "" else "\n")
+  and b =
+{|aaa
+bbb
+ccc
+test1|}^(if their_no_nl then "" else "\n")
+  in
+  let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
+  let hunk =
+    { Patch.operation = Edit ("a", "b");
+      hunks = [ { mine_start = 3; mine_len = 2; mine = ["ddd"; "eee"];
+                  their_start = 3; their_len = 1; their = ["test1"]} ];
+      mine_no_nl; their_no_nl}
+  in
+  diff, Some hunk
+
+let diff_tests_end_diff_size_both_no_nl, diff_tests_hunk_end_diff_size_both_no_nl =
+  diff_tests_end_diff_size_gen ~mine_no_nl:true ~their_no_nl:true
+let diff_tests_end_diff_size_mine_no_nl, diff_tests_hunk_end_diff_size_mine_no_nl =
+  diff_tests_end_diff_size_gen ~mine_no_nl:true ~their_no_nl:false
+let diff_tests_end_diff_size_their_no_nl, diff_tests_hunk_end_diff_size_their_no_nl =
+  diff_tests_end_diff_size_gen ~mine_no_nl:false ~their_no_nl:true
+let diff_tests_end_diff_size_none_no_nl, diff_tests_hunk_end_diff_size_none_no_nl =
+  diff_tests_end_diff_size_gen ~mine_no_nl:false ~their_no_nl:false
+
+let check_diff diff1 diff2 () =
+  Alcotest.(check (option test_t) __LOC__ diff1 diff2)
+
+let unified_diff_creation = [
+  "mine unavailable, their no_nl", `Quick, check_diff diff_tests_mine_unavailable_their_no_nl diff_tests_hunk_mine_unavailable_their_no_nl ;
+  "mine unavailable, none no_nl", `Quick, check_diff  diff_tests_mine_unavailable_none_no_nl diff_tests_hunk_mine_unavailable_none_no_nl;
+  "their unavailable, mine no_nl", `Quick, check_diff diff_tests_their_unavailable_mine_no_nl diff_tests_hunk_their_unavailable_mine_no_nl ;
+  "their unavailable, none no_nl", `Quick, check_diff diff_tests_their_unavailable_none_no_nl diff_tests_hunk_their_unavailable_none_no_nl ;
+  "empty, both no_nl", `Quick, check_diff diff_tests_empty_both_no_nl diff_tests_hunk_empty_both_no_nl;
+  "empty, mine no_nl", `Quick, check_diff diff_tests_empty_mine_no_nl diff_tests_hunk_empty_mine_no_nl;
+  "empty, their no_nl", `Quick, check_diff diff_tests_empty_their_no_nl diff_tests_hunk_empty_their_no_nl;
+  "empty, none no_nl", `Quick, check_diff diff_tests_empty_none_no_nl diff_tests_hunk_empty_none_no_nl;
+  "no diff, both no_nl", `Quick, check_diff diff_tests_no_diff_both_no_nl diff_tests_hunk_no_diff_both_no_nl ;
+  "no diff, mine no_nl", `Quick, check_diff diff_tests_no_diff_mine_no_nl diff_tests_hunk_no_diff_mine_no_nl ;
+  "no diff, their no_nl", `Quick, check_diff diff_tests_no_diff_their_no_nl diff_tests_hunk_no_diff_their_no_nl ;
+  "no diff, none no_nl", `Quick, check_diff diff_tests_no_diff_none_no_nl diff_tests_hunk_no_diff_none_no_nl ;
+  "middle, same size, both no_nl", `Quick, check_diff diff_tests_middle_same_size_both_no_nl diff_tests_hunk_middle_same_size_both_no_nl ;
+  "middle, same size, mine no_nl", `Quick, check_diff  diff_tests_middle_same_size_mine_no_nl diff_tests_hunk_middle_same_size_mine_no_nl;
+  "middle, same size, their no_nl", `Quick, check_diff diff_tests_middle_same_size_their_no_nl diff_tests_hunk_middle_same_size_their_no_nl ;
+  "middle, same size, none no_nl", `Quick, check_diff diff_tests_middle_same_size_none_no_nl diff_tests_hunk_middle_same_size_none_no_nl ;
+  "middle, diff size, both no_nl", `Quick, check_diff diff_tests_middle_diff_size_both_no_nl diff_tests_hunk_middle_diff_size_both_no_nl ;
+  "middle, diff size, mine no_nl", `Quick, check_diff diff_tests_middle_diff_size_mine_no_nl diff_tests_hunk_middle_diff_size_mine_no_nl ;
+  "middle, diff size, their no_nl", `Quick, check_diff diff_tests_middle_diff_size_their_no_nl diff_tests_hunk_middle_diff_size_their_no_nl ;
+  "middle, diff size, none no_nl", `Quick, check_diff diff_tests_middle_diff_size_none_no_nl diff_tests_hunk_middle_diff_size_none_no_nl ;
+  "beginning, same size, both no_nl", `Quick, check_diff diff_tests_beginning_same_size_both_no_nl diff_tests_hunk_beginning_same_size_both_no_nl ;
+  "beginning, same size, mine no_nl", `Quick, check_diff diff_tests_beginning_same_size_mine_no_nl diff_tests_hunk_beginning_same_size_mine_no_nl ;
+  "beginning, same size, their no_nl", `Quick, check_diff diff_tests_beginning_same_size_their_no_nl diff_tests_hunk_beginning_same_size_their_no_nl ;
+  "beginning, same size, none no_nl", `Quick, check_diff diff_tests_beginning_same_size_none_no_nl diff_tests_hunk_beginning_same_size_none_no_nl ;
+  "beginning, diff size, both no_nl", `Quick, check_diff diff_tests_beginning_diff_size_both_no_nl diff_tests_hunk_beginning_diff_size_both_no_nl ;
+  "beginning, diff size, mine no_nl", `Quick, check_diff diff_tests_beginning_diff_size_mine_no_nl diff_tests_hunk_beginning_diff_size_mine_no_nl ;
+  "beginning, diff size, their no_nl", `Quick, check_diff diff_tests_beginning_diff_size_their_no_nl diff_tests_hunk_beginning_diff_size_their_no_nl ;
+  "beginning, diff size, none no_nl", `Quick, check_diff diff_tests_beginning_diff_size_none_no_nl diff_tests_hunk_beginning_diff_size_none_no_nl ;
+  "end, same size, both no_nl", `Quick, check_diff diff_tests_end_same_size_both_no_nl diff_tests_hunk_end_same_size_both_no_nl ;
+  "end, same size, mine no_nl", `Quick, check_diff diff_tests_end_same_size_mine_no_nl diff_tests_hunk_end_same_size_mine_no_nl ;
+  "end, same size, their no_nl", `Quick, check_diff diff_tests_end_same_size_their_no_nl diff_tests_hunk_end_same_size_their_no_nl ;
+  "end, same size, none no_nl", `Quick, check_diff diff_tests_end_same_size_none_no_nl diff_tests_hunk_end_same_size_none_no_nl ;
+  "end, diff size, both no_nl", `Quick, check_diff diff_tests_end_diff_size_both_no_nl diff_tests_hunk_end_diff_size_both_no_nl ;
+  "end, diff size, mine no_nl", `Quick, check_diff diff_tests_end_diff_size_mine_no_nl diff_tests_hunk_end_diff_size_mine_no_nl ;
+  "end, diff size, their no_nl", `Quick, check_diff diff_tests_end_diff_size_their_no_nl diff_tests_hunk_end_diff_size_their_no_nl ;
+  "end, diff size, none no_nl", `Quick, check_diff diff_tests_end_diff_size_none_no_nl diff_tests_hunk_end_diff_size_none_no_nl ;
+]
+
 let tests = [
   "parse", parse_diffs ;
   "apply", apply_diffs ;
@@ -477,6 +813,7 @@ let tests = [
   "regression basic", basic_regression_diffs ;
   "parse real diffs", parse_real_diff_headers ;
   "regression", regression_diffs ;
+  "diff", unified_diff_creation ;
 ]
 
 let () =

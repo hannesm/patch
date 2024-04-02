@@ -323,3 +323,65 @@ let patch filedata diff =
       | true, true -> lines
     in
     Some (String.concat "\n" lines)
+
+let diff_op operation a b =
+  let rec aux ~mine_start ~mine_len ~mine ~their_start ~their_len ~their l1 l2 =
+    let create_diff ~mine_no_nl ~their_no_nl =
+      let hunks =
+        if mine = [] && their = [] then
+          assert false
+        else
+          let mine = List.rev mine in
+          let their = List.rev their in
+          [{mine_start; mine_len; mine; their_start; their_len; their}]
+      in
+      {operation; hunks; mine_no_nl; their_no_nl}
+    in
+    match l1, l2 with
+    | [], [] | [""], [""] when mine = [] && their = [] -> assert false
+    | [], [] -> Some (create_diff ~mine_no_nl:true ~their_no_nl:true)
+    | [""], [] -> Some (create_diff ~mine_no_nl:false ~their_no_nl:true)
+    | [], [""] -> Some (create_diff ~mine_no_nl:true ~their_no_nl:false)
+    | [""], [""] -> Some (create_diff ~mine_no_nl:false ~their_no_nl:false)
+    | [a; ""], [b] when b <> "" ->
+        aux
+          ~mine_start ~mine_len:(mine_len + 1) ~mine:(a :: mine)
+          ~their_start ~their_len:(their_len + 1) ~their:(b :: their)
+          [""] []
+    | [a], [b; ""] when a <> "" ->
+        aux
+          ~mine_start ~mine_len:(mine_len + 1) ~mine:(a :: mine)
+          ~their_start ~their_len:(their_len + 1) ~their:(b :: their)
+          [] [""]
+    | a::l1, ([] | [""]) ->
+        aux
+          ~mine_start ~mine_len:(mine_len + 1) ~mine:(a :: mine)
+          ~their_start ~their_len ~their
+          l1 l2
+    | ([] | [""]), b::l2 ->
+        aux
+          ~mine_start ~mine_len ~mine
+          ~their_start ~their_len:(their_len + 1) ~their:(b :: their)
+          l1 l2
+    | a::l1, b::l2 when mine = [] && their = [] && String.equal a b ->
+        aux
+          ~mine_start:(mine_start + 1) ~mine_len ~mine
+          ~their_start:(their_start + 1) ~their_len ~their
+          l1 l2
+    | a::l1, b::l2 ->
+        aux
+          ~mine_start ~mine_len:(mine_len + 1) ~mine:(a :: mine)
+          ~their_start ~their_len:(their_len + 1) ~their:(b :: their)
+          l1 l2
+  in
+  aux
+    ~mine_start:0 ~mine_len:0 ~mine:[]
+    ~their_start:0 ~their_len:0 ~their:[]
+    (to_lines a) (to_lines b)
+
+let diff operation a b = match a, b with
+  | None, None -> invalid_arg "no input given"
+  | None, Some b -> diff_op operation "" b
+  | Some a, None -> diff_op operation a ""
+  | Some a, Some b when String.equal a b -> None (* NOTE: Optimization *)
+  | Some a, Some b -> diff_op operation a b
