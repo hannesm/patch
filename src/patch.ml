@@ -261,8 +261,7 @@ let operation_of_strings git mine their =
   | Some a, Some b -> Edit (a, b)
   | None, None -> assert false (* ??!?? *)
 
-(* parses a list of lines to a diff.t list *)
-let to_diff data =
+let parse_one data =
   (* first locate --- and +++ lines *)
   let rec find_start git ?hdr = function
     | [] -> hdr, []
@@ -288,11 +287,11 @@ let to_diff data =
 
 let to_lines = String.cuts '\n'
 
-let to_diffs data =
+let parse data =
   let lines = to_lines data in
   let rec doit acc = function
     | [] -> List.rev acc
-    | xs -> match to_diff xs with
+    | xs -> match parse_one xs with
       | None -> List.rev acc
       | Some (diff, rest) -> doit (diff :: acc) rest
   in

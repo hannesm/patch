@@ -14,7 +14,7 @@ let exit_several_chunks = 3
 let exit_patch_failure = 4
 
 let run ~input ~diff =
-  match Patch.to_diffs diff with
+  match Patch.parse diff with
   | [] -> input
   | _::_::_ ->
     prerr_endline "Error: The diff contains several chunks,\n\
