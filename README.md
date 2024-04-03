@@ -40,20 +40,18 @@ provide the correct data yourself.
 A `diff` consists of a two-line header containing the filenames (or "/dev/null"
 for creation and deletion) followed by the actual changes in hunks. A complete
 diff file is represented by a list of `diff` elements. The OCaml types below,
-provided by this library, represent mine and theirs as operation (edit, rename,
-delete, create). Since a diff is line-based, if the file does not end with a
-newline character, the line in the diff always contains a newline, but the
-special marker `no_newline` is added to the diff. The `range` information
-carries start line and chunk size in the respective file, with two side
-conditions: if the chunk size is 0, the start line refers to after which the
-chunk should be added or deleted, and if the chunk size is omitted (including
-the comma), it is set to 1. NB from practical experiments, only "+1" and "-1"
-are supported.
+provided by this library, represent mine and theirs as operation (edit, delete,
+create). Since a diff is line-based, if the file does not end with a newline
+character, the line in the diff always contains a newline, but the special
+marker `no_newline` is added to the diff. The `range` information carries start
+line and chunk size in the respective file, with two side conditions: if the
+chunk size is 0, the start line refers to after which the chunk should be added
+or deleted, and if the chunk size is omitted (including the comma), it is set to
+1. NB from practical experiments, only "+1" and "-1" are supported.
 
 ```OCaml
 type operation =
-  | Edit of string
-  | Rename of string * string
+  | Edit of string * string
   | Delete of string
   | Create of string
   | Rename_only of string * string
@@ -67,6 +65,9 @@ type t = {
   their_no_nl : bool ;
 }
 ```
+
+In addition to parsing a diff and applying it, support for generating a diff
+from old and new file contents is also provided.
 
 ## Shortcomings
 

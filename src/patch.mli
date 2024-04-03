@@ -20,8 +20,8 @@ type operation =
   | Delete of string
   | Create of string
   | Rename_only of string * string
-(** The operation of a diff: in-place [Edit], edit and [Rename], [Delete],
-    [Create], [Rename_only]. The parameters to the variants are filenames. *)
+  (** The operation of a diff: in-place [Edit], [Delete], [Create], [Rename_only].
+      The parameters to the variants are filenames. *)
 
 val pp_operation : git:bool -> Format.formatter -> operation -> unit
 (** [pp_operation ~git ppf op] pretty-prints the operation [op] on [ppf], If
@@ -45,8 +45,8 @@ val pp : git:bool -> Format.formatter -> t -> unit
     style will be printed. *)
 
 val pp_list : git:bool -> Format.formatter -> t list -> unit
-(** [pp ~git ppf diffs] pretty-prints [diffs] on [ppf]. If [git] is true, "git diff"
-    style will be printed. *)
+(** [pp ~git ppf diffs] pretty-prints [diffs] on [ppf]. If [git] is true,
+    "git diff" style will be printed. *)
 
 val parse : string -> t list
 (** [parse data] decodes [data] as a list of diffs. *)
