@@ -46,8 +46,8 @@ character, the line in the diff always contains a newline, but the special
 marker `no_newline` is added to the diff. The `range` information carries start
 line and chunk size in the respective file, with two side conditions: if the
 chunk size is 0, the start line refers to after which the chunk should be added
-or deleted, and if the chunk size is omitted (including the comma), it is set to
-1. NB from practical experiments, only "+1" and "-1" are supported.
+or deleted, and if the chunk size is omitted (including the comma), it is set
+to 1. NB from practical experiments, only "+1" and "-1" are supported.
 
 ```OCaml
 type operation =
