@@ -11,6 +11,13 @@ type hunk = {
 (** A hunk contains some difference between two files: each with a start line
     and length, and then the content as lists of string. *)
 
+type parse_error = {
+  msg : string;
+  lines : string list;
+}
+
+exception Parse_error of parse_error
+
 val pp_hunk : mine_no_nl:bool -> their_no_nl:bool -> Format.formatter -> hunk -> unit
 (** [pp_hunk ppf hunk] pretty-prints the [hunk] on [ppf], the printing is in the
     same format as [diff] does. *)
@@ -49,7 +56,9 @@ val pp_list : git:bool -> Format.formatter -> t list -> unit
     "git diff" style will be printed. *)
 
 val parse : string -> t list
-(** [parse data] decodes [data] as a list of diffs. *)
+(** [parse data] decodes [data] as a list of diffs.
+
+    @raise Parse_error if a filename was unable to be parsed *)
 
 val patch : string option -> t -> string option
 (** [patch file_contents diff] applies [diff] on [file_contents], resulting in

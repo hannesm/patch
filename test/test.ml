@@ -819,7 +819,7 @@ let unified_diff_spaces = {|\
 |}
 
 let unified_diff_spaces =
-  operations [Patch.Edit ("\"a/foo bar\"", "\"b/foo bar\"")] unified_diff_spaces
+  operations [Patch.Edit ("a/foo bar", "b/foo bar")] unified_diff_spaces
 
 let git_diff_spaces = {|\
 diff --git a/foo bar b/foo bar
@@ -854,7 +854,7 @@ let unified_diff_quotes = {|\
 |}
 
 let unified_diff_quotes =
-  operations [Patch.Edit ({|"foo bar \"baz\""|}, {|"\"foo\" bar baz"|})] unified_diff_quotes
+  operations [Patch.Edit ({|foo bar "baz"|}, {|"foo" bar baz|})] unified_diff_quotes
 
 let git_diff_quotes = {|\
 diff --git "a/foo bar \"baz\"" "b/\"foo\" bar baz"
@@ -867,7 +867,7 @@ index 88adca3..ef00db3 100644
 |}
 
 let git_diff_quotes =
-  operations [Patch.Edit ({|"a/foo bar \"baz\""|}, {|"b/\"foo\" bar baz"|})] git_diff_quotes
+  operations [Patch.Edit ({|foo bar "baz"|}, {|"foo" bar baz|})] git_diff_quotes
 
 let busybox_diff_quotes = {|\
 --- foo bar "baz"
@@ -941,7 +941,7 @@ let quoted_filename = {|\
 |}
 
 let quoted_filename =
-  operations [Patch.Create {|"\a\b\f\n\r\t\v\\\"\001\177\046"|}] quoted_filename
+  operations [Patch.Create "\007\b\012\n\r\t\011\\\"\001\127&"] quoted_filename
 
 let unquoted_filename = {|\
 --- /dev/null

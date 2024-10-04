@@ -1,47 +1,4 @@
-module String = struct
-  let is_prefix ~prefix str =
-    let pl = String.length prefix in
-    if String.length str < pl then
-      false
-    else
-      String.sub str 0 (String.length prefix) = prefix
-
-  let cut sep str =
-    try
-      let idx = String.index str sep
-      and l = String.length str
-      in
-      let sidx = succ idx in
-      Some (String.sub str 0 idx, String.sub str sidx (l - sidx))
-    with
-      Not_found -> None
-
-  let cuts sep str =
-    let rec doit acc s =
-      match cut sep s with
-      | None -> List.rev (s :: acc)
-      | Some (a, b) -> doit (a :: acc) b
-    in
-    doit [] str
-
-  let slice ?(start = 0) ?stop str =
-    let stop = match stop with
-      | None -> String.length str
-      | Some x -> x
-    in
-    let len = stop - start in
-    String.sub str start len
-
-  let trim = String.trim
-
-  let get = String.get
-
-  let concat = String.concat
-
-  let length = String.length
-
-  let equal = String.equal
-end
+module String = Patch_lib.String
 
 type hunk = {
   mine_start : int ;
@@ -51,6 +8,14 @@ type hunk = {
   their_len : int ;
   their : string list ;
 }
+
+type parse_error = {
+  msg : string;
+  lines : string list;
+  (* TODO: add the start position of the error *)
+}
+
+exception Parse_error of parse_error
 
 let unified_diff ~mine_no_nl ~their_no_nl hunk =
   let no_nl_str = ["\\ No newline at end of file"] in
@@ -247,19 +212,30 @@ let pp ~git ppf {operation; hunks; mine_no_nl; their_no_nl} =
 let pp_list ~git ppf diffs =
   List.iter (Format.fprintf ppf "%a" (pp ~git)) diffs
 
+(* TODO: remove this and let users decide the prefix level they want *)
+let process_git_prefix ~git ~prefix s =
+  if git && String.is_prefix ~prefix s then
+    String.slice ~start:(String.length prefix) s
+  else
+    s
+
 let operation_of_strings git mine their =
-  let get_filename_opt n =
-    let s = match String.cut '\t' n with None -> n | Some (x, _) -> x in
-    if s = no_file then None else
-    if git && (String.is_prefix ~prefix:"a/" s || String.is_prefix ~prefix:"b/" s) then
-      Some (String.slice ~start:2 s)
-    else Some s
-  in
-  match get_filename_opt mine, get_filename_opt their with
-  | None, Some n -> Create n
-  | Some n, None -> Delete n
-  | Some a, Some b -> Edit (a, b)
-  | None, None -> assert false (* ??!?? *)
+  let mine_fn = String.slice ~start:4 mine
+  and their_fn = String.slice ~start:4 their in
+  match Fname.parse mine_fn, Fname.parse their_fn with
+  | Ok None, Ok (Some b) ->
+      let b = process_git_prefix ~git ~prefix:"b/" b in
+      Create b
+  | Ok (Some a), Ok None ->
+      let a = process_git_prefix ~git ~prefix:"a/" a in
+      Delete a
+  | Ok (Some a), Ok (Some b) ->
+      let a = process_git_prefix ~git ~prefix:"a/" a in
+      let b = process_git_prefix ~git ~prefix:"b/" b in
+      Edit (a, b)
+  | Ok None, Ok None -> assert false (* ??!?? *)
+  | Error msg, _ -> raise (Parse_error {msg; lines = [mine]})
+  | _, Error msg -> raise (Parse_error {msg; lines = [their]})
 
 let parse_one data =
   (* first locate --- and +++ lines *)
@@ -271,8 +247,7 @@ let parse_one data =
       let hdr = Rename_only (String.slice ~start:12 x, String.slice ~start:10 y) in
       find_start git ~hdr xs
     | x::y::xs when String.is_prefix ~prefix:"--- " x ->
-      let mine = String.slice ~start:4 x and their = String.slice ~start:4 y in
-      Some (operation_of_strings git mine their), xs
+      Some (operation_of_strings git x y), xs
     | _::xs -> find_start git ?hdr xs
   in
   match find_start false data with
