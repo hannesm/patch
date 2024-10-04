@@ -899,7 +899,7 @@ diff -ruaN a/test b/test
 |}
 
 let macos_diff_N_deletion =
-  operations [Patch.Edit ("a/test", "b/test")] macos_diff_N_deletion
+  operations [Patch.Delete "a/test"] macos_diff_N_deletion
 
 let openbsd_diff_N_deletion = {|\
 diff -ruaN a/test b/test
@@ -910,7 +910,7 @@ diff -ruaN a/test b/test
 |}
 
 let openbsd_diff_N_deletion =
-  operations [Patch.Edit ("a/test", "b/test")] openbsd_diff_N_deletion
+  operations [Patch.Delete "a/test"] openbsd_diff_N_deletion
 
 let gnu_diff_N_deletion = {|\
 diff -ruaN a/test b/test
@@ -921,7 +921,7 @@ diff -ruaN a/test b/test
 |}
 
 let gnu_diff_N_deletion =
-  operations [Patch.Edit ("a/test", "b/test")] gnu_diff_N_deletion
+  operations [Patch.Delete "a/test"] gnu_diff_N_deletion
 
 let busybox_diff_N_deletion = {|\
 --- a/test

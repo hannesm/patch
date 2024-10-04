@@ -53,12 +53,17 @@ and lex_filename buf = parse
 
 {
 let parse s =
-  let filename, _date =
+  let filename, date =
     match String.cut '\t' s with
     | None -> (s, "")
     | Some x -> x
   in
-  if filename = "/dev/null" then
+  if filename = "/dev/null" ||
+     String.is_prefix ~prefix:"1970-" date ||
+     String.is_prefix ~prefix:"1969-" date ||
+     String.is_suffix ~suffix:" 1970" date ||
+     String.is_suffix ~suffix:" 1969" date then
+    (* See https://github.com/hannesm/patch/issues/8 *)
     Ok None
   else
     let lexbuf = Lexing.from_string filename in
