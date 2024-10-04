@@ -28,12 +28,11 @@ type operation =
   | Create of string
   | Rename_only of string * string
   (** The operation of a diff: in-place [Edit], [Delete], [Create], [Rename_only].
-      The parameters to the variants are filenames. *)
+      The parameters to the variants are filenames.
+      NOTE: in a typical git diff file, [Rename_only] does not have any prefix. *)
 
-val pp_operation : git:bool -> Format.formatter -> operation -> unit
-(** [pp_operation ~git ppf op] pretty-prints the operation [op] on [ppf], If
-    [git] is true, the [git diff] style will be output (a
-    "diff --git oldfilename newfilename" line, etc). *)
+val pp_operation : Format.formatter -> operation -> unit
+(** [pp_operation ppf op] pretty-prints the operation [op] on [ppf]. *)
 
 val operation_eq : operation -> operation -> bool
 (** [operation_eq a b] is true if [a] and [b] are equal. *)
@@ -47,16 +46,18 @@ type t = {
 (** The type of a diff: an operation, a list of hunks, and information whether
     a trailing newline exists on the left and right. *)
 
-val pp : git:bool -> Format.formatter -> t -> unit
-(** [pp ~git ppf t] pretty-prints [t] on [ppf]. If [git] is true, "git diff"
-    style will be printed. *)
+val pp : Format.formatter -> t -> unit
+(** [pp ppf t] pretty-prints [t] on [ppf]. *)
 
-val pp_list : git:bool -> Format.formatter -> t list -> unit
-(** [pp ~git ppf diffs] pretty-prints [diffs] on [ppf]. If [git] is true,
-    "git diff" style will be printed. *)
+val pp_list : Format.formatter -> t list -> unit
+(** [pp ppf diffs] pretty-prints [diffs] on [ppf]. *)
 
-val parse : string -> t list
-(** [parse data] decodes [data] as a list of diffs.
+val parse : p:int -> string -> t list
+(** [parse ~p data] decodes [data] as a list of diffs.
+
+    @param p denotes the expected prefix level of the filenames.
+    For more information, see the option [-p] in your POSIX-complient
+    patch.
 
     @raise Parse_error if a filename was unable to be parsed *)
 
