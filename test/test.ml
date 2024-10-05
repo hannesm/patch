@@ -1024,15 +1024,14 @@ let plain_filename =
 let plain_filename = operations (Patch.Edit ("a/test", "b/test")) plain_filename
 
 let filename_with_spaces =
-{|--- a/one space
-+++ b/with two spaces
+{|--- "a/one space"
++++ "b/with two spaces"
 |}
 
 let filename_with_spaces = operations (Patch.Edit ("a/one space", "b/with two spaces")) filename_with_spaces
 
 let filename_with_special_chars =
-{|--- |}^"\007\b\012"^{|
-|}^"\r\t\011 some name \\\"\001\127&"^{|
+{|--- "\a\b\f\n\r\t\v some name \\\"\001\177&"
 +++ /dev/null
 |}
 

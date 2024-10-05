@@ -161,20 +161,60 @@ let operation_eq a b = match a, b with
 
 let no_file = "/dev/null"
 
+let pp_filename ppf fn =
+  (* NOTE: filename quote format from GNU diffutils *)
+  let rec aux ~to_quote buf fn ~len i =
+    if i < len then
+      let c = fn.[i] in
+      let to_quote =
+        if c = '\007' then
+          (Buffer.add_string buf "\\a"; true)
+        else if c = '\b' then
+          (Buffer.add_string buf "\\b"; true)
+        else if c = '\t' then
+          (Buffer.add_string buf "\\t"; true)
+        else if c = '\n' then
+          (Buffer.add_string buf "\\n"; true)
+        else if c = '\011' then
+          (Buffer.add_string buf "\\v"; true)
+        else if c = '\012' then
+          (Buffer.add_string buf "\\f"; true)
+        else if c = '\r' then
+          (Buffer.add_string buf "\\r"; true)
+        else if c < ' ' || c > '~' then
+          (Printf.bprintf buf "\\%03o" (Char.code c); true)
+        else if c = ' ' then
+          (Buffer.add_char buf ' '; true)
+        else if c = '"' || c = '\\' then
+          (Buffer.add_char buf '\\'; Buffer.add_char buf c; true)
+        else
+          (Buffer.add_char buf c; to_quote)
+      in
+      aux ~to_quote buf fn ~len (i + 1)
+    else
+      to_quote
+  in
+  let len = String.length fn in
+  let buf = Buffer.create (len * 2) in
+  if aux ~to_quote:false buf fn ~len 0 then
+    Format.fprintf ppf "\"%s\"" (Buffer.contents buf)
+  else
+    Format.pp_print_text ppf fn
+
 let pp_operation ppf op =
   match op with
   | Edit (old_name, new_name) ->
-    Format.fprintf ppf "--- %s\n" old_name ;
-    Format.fprintf ppf "+++ %s\n" new_name
+    Format.fprintf ppf "--- %a\n" pp_filename old_name ;
+    Format.fprintf ppf "+++ %a\n" pp_filename new_name
   | Delete name ->
-    Format.fprintf ppf "--- %s\n" name ;
-    Format.fprintf ppf "+++ %s\n" no_file
+    Format.fprintf ppf "--- %a\n" pp_filename name ;
+    Format.fprintf ppf "+++ %a\n" pp_filename no_file
   | Create name ->
-    Format.fprintf ppf "--- %s\n" no_file ;
-    Format.fprintf ppf "+++ %s\n" name
+    Format.fprintf ppf "--- %a\n" pp_filename no_file ;
+    Format.fprintf ppf "+++ %a\n" pp_filename name
   | Rename_only (old_name, new_name) ->
-    Format.fprintf ppf "rename from %s\n" old_name;
-    Format.fprintf ppf "rename to %s\n" new_name
+    Format.fprintf ppf "rename from %a\n" pp_filename old_name;
+    Format.fprintf ppf "rename to %a\n" pp_filename new_name
 
 type t = {
   operation : operation ;
