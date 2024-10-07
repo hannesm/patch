@@ -1011,6 +1011,39 @@ let patch_p = [
   "-p1 with root files", `Quick, p1_root;
 ]
 
+let pp_output_test = Alcotest.testable Format.pp_print_string String.equal
+let operations exp str () =
+  let exp = Format.asprintf "%a" Patch.pp_operation exp in
+  Alcotest.(check pp_output_test) __LOC__ str exp
+
+let plain_filename =
+{|--- a/test
++++ b/test
+|}
+
+let plain_filename = operations (Patch.Edit ("a/test", "b/test")) plain_filename
+
+let filename_with_spaces =
+{|--- a/one space
++++ b/with two spaces
+|}
+
+let filename_with_spaces = operations (Patch.Edit ("a/one space", "b/with two spaces")) filename_with_spaces
+
+let filename_with_special_chars =
+{|--- |}^"\007\b\012"^{|
+|}^"\r\t\011 some name \\\"\001\127&"^{|
++++ /dev/null
+|}
+
+let filename_with_special_chars = operations (Patch.Delete "\007\b\012\n\r\t\011 some name \\\"\001\127&") filename_with_special_chars
+
+let pp_filenames = [
+  "plain", `Quick, plain_filename;
+  "with spaces", `Quick, filename_with_spaces;
+  "with special characters", `Quick, filename_with_special_chars;
+]
+
 let tests = [
   "parse", parse_diffs ;
   "apply", apply_diffs ;
@@ -1021,6 +1054,7 @@ let tests = [
   "regression", regression_diffs ;
   "diff", unified_diff_creation ;
   "patch -p", patch_p;
+  "pretty-print filenames", pp_filenames;
 ]
 
 let () =
