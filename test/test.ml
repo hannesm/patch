@@ -806,10 +806,175 @@ let unified_diff_creation = [
   "end, diff size, none no_nl", `Quick, check_diff diff_tests_end_diff_size_none_no_nl diff_tests_hunk_end_diff_size_none_no_nl ;
 ]
 
+let operations exp diff () =
+  let ops = diff |> Patch.parse |> List.map (fun p -> p.Patch.operation) in
+  Alcotest.(check (list op_test)) __LOC__ exp ops
+
+let unified_diff_spaces = {|\
+--- "a/foo bar"	2024-09-04 10:56:24.139293679 +0200
++++ "b/foo bar"	2024-09-04 10:56:12.519195763 +0200
+@@ -1 +1 @@
+-This is wrong.
++This is right.
+|}
+
+let unified_diff_spaces =
+  operations [Patch.Edit ("a/foo bar", "b/foo bar")] unified_diff_spaces
+
+let git_diff_spaces = {|\
+diff --git a/foo bar b/foo bar
+index ef00db3..88adca3 100644
+--- a/foo bar
++++ b/foo bar
+@@ -1 +1 @@
+-This is wrong.
++This is right.
+|}
+
+let git_diff_spaces =
+  operations [Patch.Edit ("foo bar", "foo bar")] git_diff_spaces
+
+let busybox_diff_spaces = {|\
+--- a/foo bar
++++ b/foo bar
+@@ -1 +1 @@
+-This is wrong.
++This is right.
+|}
+
+let busybox_diff_spaces =
+  operations [Patch.Edit ("a/foo bar", "b/foo bar")] busybox_diff_spaces
+
+let unified_diff_quotes = {|\
+--- "foo bar \"baz\""	2024-09-27 11:09:48.325541553 +0200
++++ "\"foo\" bar baz"	2024-09-27 11:06:42.612922437 +0200
+@@ -1 +1 @@
+-This is right.
++This is wrong.
+|}
+
+let unified_diff_quotes =
+  operations [Patch.Edit ({|foo bar "baz"|}, {|"foo" bar baz|})] unified_diff_quotes
+
+let git_diff_quotes = {|\
+diff --git "a/foo bar \"baz\"" "b/\"foo\" bar baz"
+index 88adca3..ef00db3 100644
+--- "a/foo bar \"baz\""
++++ "b/\"foo\" bar baz"
+@@ -1 +1 @@
+-This is right.
++This is wrong.
+|}
+
+let git_diff_quotes =
+  operations [Patch.Edit ({|foo bar "baz"|}, {|"foo" bar baz|})] git_diff_quotes
+
+let busybox_diff_quotes = {|\
+--- foo bar "baz"
++++ "foo" bar baz
+@@ -1 +1 @@
+-This is right.
++This is wrong.
+|}
+
+let busybox_diff_quotes =
+  operations [Patch.Edit ({|foo bar "baz"|}, {|"foo" bar baz|})] busybox_diff_quotes
+
+let dev_null_like = {|\
+--- /dev/null_but_actually_not
++++ b
+@@ -0,0 +1 @@
++foo
+|}
+
+let dev_null_like =
+  operations [Patch.Edit ("/dev/null_but_actually_not", "b")] dev_null_like
+
+let macos_diff_N_deletion = {|\
+diff -ruaN a/test b/test
+--- a/test	2024-03-21 11:29:11
++++ b/test	1970-01-01 01:00:00
+@@ -1 +0,0 @@
+-aaa
+|}
+
+let macos_diff_N_deletion =
+  operations [Patch.Delete "a/test"] macos_diff_N_deletion
+
+let openbsd_diff_N_deletion = {|\
+diff -ruaN a/test b/test
+--- a/test	Thu Mar 21 12:34:45 2024
++++ b/test	Thu Jan  1 01:00:00 1970
+@@ -1 +0,0 @@
+-aaa
+|}
+
+let openbsd_diff_N_deletion =
+  operations [Patch.Delete "a/test"] openbsd_diff_N_deletion
+
+let gnu_diff_N_deletion = {|\
+diff -ruaN a/test b/test
+--- a/test	2024-03-21 11:35:38.363194916 +0000
++++ b/test	1970-01-01 01:00:00.000000000 +0100
+@@ -1 +0,0 @@
+-aaa
+|}
+
+let gnu_diff_N_deletion =
+  operations [Patch.Delete "a/test"] gnu_diff_N_deletion
+
+let busybox_diff_N_deletion = {|\
+--- a/test
++++ /dev/null
+@@ -1 +0,0 @@
+-aaa
+|}
+
+let busybox_diff_N_deletion =
+  operations [Patch.Delete "a/test"] busybox_diff_N_deletion
+
+let quoted_filename = {|\
+--- /dev/null
++++ "\a\b\f\n\r\t\v\\\"\001\177\046"
+@@ -0,0 +1 @@
++aaa
+|}
+
+let quoted_filename =
+  operations [Patch.Create "\007\b\012\n\r\t\011\\\"\001\127&"] quoted_filename
+
+let unquoted_filename = {|\
+--- /dev/null
++++ \a\b\f\n\r\t\v\\\"\001\177\046
+@@ -0,0 +1 @@
++aaa
+|}
+
+let unquoted_filename =
+  operations [Patch.Create {|\a\b\f\n\r\t\v\\\"\001\177\046|}] unquoted_filename
+
+let filename_diffs =
+  [
+    "unified diff with spaces", `Quick, unified_diff_spaces;
+    "git diff with spaces", `Quick, git_diff_spaces;
+    "busybox diff with spaces", `Quick, busybox_diff_spaces;
+    "unified diff with quotes", `Quick, unified_diff_quotes;
+    "git diff with quotes", `Quick, git_diff_quotes;
+    "busybox diff with quotes", `Quick, busybox_diff_quotes;
+    "file that looks like /dev/null", `Quick, dev_null_like;
+    "diff -uN with file deletion on macOS", `Quick, macos_diff_N_deletion;
+    "diff -uN with file deletion on OpenBSD", `Quick, openbsd_diff_N_deletion;
+    "diff -uN with file deletion with GNU diff", `Quick, gnu_diff_N_deletion;
+    "diff -uN with file deletion with Busybox", `Quick, busybox_diff_N_deletion;
+    "heavily quoted filename", `Quick, quoted_filename;
+    "unquoted filename with backslashes", `Quick, unquoted_filename;
+  ]
+
 let tests = [
   "parse", parse_diffs ;
   "apply", apply_diffs ;
   "multiple", multi_diffs ;
+  "filename", filename_diffs ;
   "regression basic", basic_regression_diffs ;
   "parse real diffs", parse_real_diff_headers ;
   "regression", regression_diffs ;
