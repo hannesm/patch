@@ -30,16 +30,6 @@ let pp_hunk ~mine_no_nl ~their_no_nl ppf hunk =
     hunk.mine_start hunk.mine_len hunk.their_start hunk.their_len
     (unified_diff ~mine_no_nl ~their_no_nl hunk)
 
-let drop data num =
-  let rec drop data num =
-    match num, data with
-    | 0, _ -> data
-    | n, _::xs -> drop xs (pred n)
-    | _ -> invalid_arg "drop broken"
-  in
-  try drop data num with
-  | Invalid_argument _ -> invalid_arg ("drop " ^ string_of_int num ^ " on " ^ string_of_int (List.length data))
-
 let list_cut idx l =
   let rec aux acc idx = function
     | l when idx = 0 -> (List.rev acc, l)
@@ -315,8 +305,17 @@ let strip_prefix ~p filename =
     | [] -> assert false
     | x::xs ->
         (* Per GNU patch's spec: A sequence of one or more adjacent slashes is counted as a single slash. *)
-        let filename = x :: List.filter (function "" -> false | _ -> true) xs in
-        String.concat "/" (drop filename p)
+        let filename' = x :: List.filter (function "" -> false | _ -> true) xs in
+        let rec drop_up_to n = function
+          | [] -> assert false
+          | l when n = 0 -> l
+          | [_] -> failwith "wrong prefix"
+          | _::xs -> drop_up_to (n - 1) xs
+        in
+        (* GNU patch just drops the max number of slashes when the filename doesn't have enough slashes to satisfy -p *)
+        match drop_up_to p filename' with
+        | [] -> assert false
+        | l -> String.concat "/" l
 
 let operation_of_strings ~p mine their =
   let mine_fn = String.slice ~start:4 mine
