@@ -161,33 +161,18 @@ let operation_eq a b = match a, b with
 
 let no_file = "/dev/null"
 
-let pp_operation ~git ppf op =
-  let real_name direction name =
-    if git then name else
-      match direction with `Mine -> "a/" ^ name | `Theirs -> "b/" ^ name
-  in
-  let hdr mine their =
-    (* even if create/delete, /dev/null is not used in this header *)
-    (* according to git documentation *)
-    if git then
-      Format.fprintf ppf "diff --git %s %s\n"
-        (real_name `Mine mine) (real_name `Theirs their)
-  in
+let pp_operation ppf op =
   match op with
   | Edit (old_name, new_name) ->
-    hdr old_name new_name ;
-    Format.fprintf ppf "--- %s\n" (real_name `Mine old_name) ;
-    Format.fprintf ppf "+++ %s\n" (real_name `Theirs new_name)
+    Format.fprintf ppf "--- %s\n" old_name ;
+    Format.fprintf ppf "+++ %s\n" new_name
   | Delete name ->
-    hdr name name ;
-    Format.fprintf ppf "--- %s\n" (real_name `Mine name) ;
+    Format.fprintf ppf "--- %s\n" name ;
     Format.fprintf ppf "+++ %s\n" no_file
   | Create name ->
-    hdr name name ;
     Format.fprintf ppf "--- %s\n" no_file ;
-    Format.fprintf ppf "+++ %s\n" (real_name `Theirs name)
+    Format.fprintf ppf "+++ %s\n" name
   | Rename_only (old_name, new_name) ->
-    hdr old_name new_name ;
     Format.fprintf ppf "rename from %s\n" old_name;
     Format.fprintf ppf "rename to %s\n" new_name
 
@@ -198,8 +183,8 @@ type t = {
   their_no_nl : bool ;
 }
 
-let pp ~git ppf {operation; hunks; mine_no_nl; their_no_nl} =
-  pp_operation ~git ppf operation;
+let pp ppf {operation; hunks; mine_no_nl; their_no_nl} =
+  pp_operation ppf operation;
   let rec aux = function
     | [] -> ()
     | [x] -> pp_hunk ~mine_no_nl ~their_no_nl ppf x
@@ -209,48 +194,43 @@ let pp ~git ppf {operation; hunks; mine_no_nl; their_no_nl} =
   in
   aux hunks
 
-let pp_list ~git ppf diffs =
-  List.iter (Format.fprintf ppf "%a" (pp ~git)) diffs
+let pp_list ppf diffs =
+  List.iter (Format.fprintf ppf "%a" pp) diffs
 
-(* TODO: remove this and let users decide the prefix level they want *)
-let process_git_prefix ~git ~prefix s =
-  if git && String.is_prefix ~prefix s then
-    String.slice ~start:(String.length prefix) s
+let strip_prefix ~p filename =
+  if p = 0 then
+    filename
   else
-    s
+    match String.cuts '/' filename with
+    | [] -> assert false
+    | x::xs ->
+        (* Per GNU patch's spec: A sequence of one or more adjacent slashes is counted as a single slash. *)
+        let filename = x :: List.filter (function "" -> false | _ -> true) xs in
+        String.concat "/" (drop filename p)
 
-let operation_of_strings git mine their =
+let operation_of_strings ~p mine their =
   let mine_fn = String.slice ~start:4 mine
   and their_fn = String.slice ~start:4 their in
   match Fname.parse mine_fn, Fname.parse their_fn with
-  | Ok None, Ok (Some b) ->
-      let b = process_git_prefix ~git ~prefix:"b/" b in
-      Create b
-  | Ok (Some a), Ok None ->
-      let a = process_git_prefix ~git ~prefix:"a/" a in
-      Delete a
-  | Ok (Some a), Ok (Some b) ->
-      let a = process_git_prefix ~git ~prefix:"a/" a in
-      let b = process_git_prefix ~git ~prefix:"b/" b in
-      Edit (a, b)
+  | Ok None, Ok (Some b) -> Create (strip_prefix ~p b)
+  | Ok (Some a), Ok None -> Delete (strip_prefix ~p a)
+  | Ok (Some a), Ok (Some b) -> Edit (strip_prefix ~p a, strip_prefix ~p b)
   | Ok None, Ok None -> assert false (* ??!?? *)
   | Error msg, _ -> raise (Parse_error {msg; lines = [mine]})
   | _, Error msg -> raise (Parse_error {msg; lines = [their]})
 
-let parse_one data =
+let parse_one ~p data =
   (* first locate --- and +++ lines *)
-  let rec find_start git ?hdr = function
+  let rec find_start ?hdr = function
     | [] -> hdr, []
-    | x::xs when String.is_prefix ~prefix:"diff --git " x ->
-      begin match hdr with None -> find_start true xs | Some _ -> hdr, x::xs end
     | x::y::xs when String.is_prefix ~prefix:"rename from " x && String.is_prefix ~prefix:"rename to " y ->
       let hdr = Rename_only (String.slice ~start:12 x, String.slice ~start:10 y) in
-      find_start git ~hdr xs
+      find_start ~hdr xs
     | x::y::xs when String.is_prefix ~prefix:"--- " x ->
-      Some (operation_of_strings git x y), xs
-    | _::xs -> find_start git ?hdr xs
+      Some (operation_of_strings ~p x y), xs
+    | _::xs -> find_start ?hdr xs
   in
-  match find_start false data with
+  match find_start data with
   | Some (Rename_only _ as operation), rest ->
     let hunks = [] and mine_no_nl = false and their_no_nl = false in
     Some ({ operation ; hunks ; mine_no_nl ; their_no_nl }, rest)
@@ -262,15 +242,15 @@ let parse_one data =
 
 let to_lines = String.cuts '\n'
 
-let parse data =
+let parse ~p data =
   let lines = to_lines data in
-  let rec doit acc = function
+  let rec doit ~p acc = function
     | [] -> List.rev acc
-    | xs -> match parse_one xs with
+    | xs -> match parse_one ~p xs with
       | None -> List.rev acc
-      | Some (diff, rest) -> doit (diff :: acc) rest
+      | Some (diff, rest) -> doit ~p (diff :: acc) rest
   in
-  doit [] lines
+  doit ~p [] lines
 
 let patch filedata diff =
   match diff.operation with

@@ -16,7 +16,7 @@ let patch_eq a b =
   List.length a.hunks = List.length b.hunks &&
   List.for_all (fun h -> List.exists (fun h' -> hunk_eq h h') b.hunks) a.hunks
 
-let test_t = Alcotest.testable (Patch.pp ~git:false) patch_eq
+let test_t = Alcotest.testable Patch.pp patch_eq
 
 let basic_files = [
   Some "foo\n" ;
@@ -295,7 +295,7 @@ foo
 ]
 
 let basic_parse diff exp () =
-  let diffs = Patch.parse diff in
+  let diffs = Patch.parse ~p:0 diff in
   Alcotest.(check (list test_t) __LOC__ exp diffs)
 
 let parse_diffs =
@@ -304,7 +304,7 @@ let parse_diffs =
     (List.combine basic_diffs basic_hunks)
 
 let basic_apply file diff exp () =
-  match Patch.parse diff with
+  match Patch.parse ~p:0 diff with
   | [ diff ] ->
     let res = Patch.patch file diff in
     Alcotest.(check (option string) __LOC__ exp res)
@@ -367,7 +367,7 @@ let multi_files = [ Some "bar" ; Some "baz" ; None ; Some "foobarbaz" ]
 let multi_exp = [ Some "foobar" ; None ; Some "baz" ; Some "foobar" ]
 
 let multi_apply () =
-  let diffs = Patch.parse multi_diff in
+  let diffs = Patch.parse ~p:0 multi_diff in
   Alcotest.(check int __LOC__ (List.length multi_files) (List.length diffs));
   Alcotest.(check int __LOC__ (List.length multi_exp) (List.length diffs));
   List.iter2 (fun diff (input, expected) ->
@@ -412,11 +412,11 @@ let read file =
 
 let opt_read file = try Some (read file) with Unix.Unix_error _ -> None
 
-let op_test = Alcotest.testable (Patch.pp_operation ~git:false) Patch.operation_eq
+let op_test = Alcotest.testable Patch.pp_operation Patch.operation_eq
 
 let parse_real_diff_header file hdr () =
   let data = read (file ^ ".diff") in
-  let diffs = Patch.parse data in
+  let diffs = Patch.parse ~p:0 data in
   Alcotest.(check int __LOC__ 1 (List.length diffs));
   Alcotest.check op_test __LOC__ hdr (List.hd diffs).Patch.operation
 
@@ -425,17 +425,17 @@ let parse_real_diff_headers =
       "parsing " ^ file ^ ".diff", `Quick, parse_real_diff_header file hdr)
     [ "first", Patch.Edit ("first.old", "first.new") ;
       "create1", Patch.Create "a/create1" ;
-      "git1", Patch.Create "git1.new" ;
+      "git1", Patch.Create "b/git1.new" ;
       "git2", Patch.Rename_only ("git2.old", "git2.new") ;
-      "git3", Patch.Edit ("git3.old", "git3.new") ;
-      "git4", Patch.Delete "git4.old"
+      "git3", Patch.Edit ("a/git3.old", "b/git3.new") ;
+      "git4", Patch.Delete "a/git4.old"
     ]
 
 let regression_test name () =
   let old = opt_read (name ^ ".old") in
   let diff = read (name ^ ".diff") in
   let exp = opt_read (name ^ ".new") in
-  match Patch.parse diff with
+  match Patch.parse ~p:0 diff with
   | [ diff ] ->
     let res = Patch.patch old diff in
     Alcotest.(check (option string) __LOC__ exp res)
@@ -807,7 +807,7 @@ let unified_diff_creation = [
 ]
 
 let operations exp diff () =
-  let ops = diff |> Patch.parse |> List.map (fun p -> p.Patch.operation) in
+  let ops = diff |> Patch.parse ~p:0 |> List.map (fun p -> p.Patch.operation) in
   Alcotest.(check (list op_test)) __LOC__ exp ops
 
 let unified_diff_spaces = {|\
@@ -832,7 +832,7 @@ index ef00db3..88adca3 100644
 |}
 
 let git_diff_spaces =
-  operations [Patch.Edit ("foo bar", "foo bar")] git_diff_spaces
+  operations [Patch.Edit ("a/foo bar", "b/foo bar")] git_diff_spaces
 
 let busybox_diff_spaces = {|\
 --- a/foo bar
@@ -867,7 +867,7 @@ index 88adca3..ef00db3 100644
 |}
 
 let git_diff_quotes =
-  operations [Patch.Edit ({|foo bar "baz"|}, {|"foo" bar baz|})] git_diff_quotes
+  operations [Patch.Edit ({|a/foo bar "baz"|}, {|b/"foo" bar baz|})] git_diff_quotes
 
 let busybox_diff_quotes = {|\
 --- foo bar "baz"
@@ -970,6 +970,47 @@ let filename_diffs =
     "unquoted filename with backslashes", `Quick, unquoted_filename;
   ]
 
+let operations ~p exp diff () =
+  let ops = diff |> Patch.parse ~p |> List.map (fun p -> p.Patch.operation) in
+  Alcotest.(check (list op_test)) __LOC__ exp ops
+
+let p1_p2 = {|\
+--- a.orig/a/test
++++ b.new/b/test
+@@ -0,0 +1 @@
++aaa
+|}
+
+let p1 = operations ~p:1 [Patch.Edit ("a/test", "b/test")] p1_p2
+let p2 = operations ~p:2 [Patch.Edit ("test", "test")] p1_p2
+
+let p1_adjacent_slashes = {|\
+--- a///some//dir////test
++++ b///some/dir/test
+@@ -0,0 +1 @@
++aaa
+|}
+
+let p1_adjacent_slashes = operations ~p:1 [Patch.Edit ("some/dir/test", "some/dir/test")] p1_adjacent_slashes
+
+let p0_p1_root = {|\
+--- /a/test
++++ /b/test
+@@ -0,0 +1 @@
++aaa
+|}
+
+let p0_root = operations ~p:0 [Patch.Edit ("/a/test", "/b/test")] p0_p1_root
+let p1_root = operations ~p:1 [Patch.Edit ("a/test", "b/test")] p0_p1_root
+
+let patch_p = [
+  "-p1", `Quick, p1;
+  "-p2", `Quick, p2;
+  "-p1 with adjacent slashes", `Quick, p1_adjacent_slashes;
+  "-p0 with root files", `Quick, p0_root;
+  "-p1 with root files", `Quick, p1_root;
+]
+
 let tests = [
   "parse", parse_diffs ;
   "apply", apply_diffs ;
@@ -979,6 +1020,7 @@ let tests = [
   "parse real diffs", parse_real_diff_headers ;
   "regression", regression_diffs ;
   "diff", unified_diff_creation ;
+  "patch -p", patch_p;
 ]
 
 let () =
