@@ -101,6 +101,8 @@ let sort_into_bags ~counter:(mine_len, their_len) dir mine their m_nl t_nl str =
   else match String.get str 0, String.slice ~start:1 str with
     | ' ', data ->
         both data
+    | '\t', data ->
+        both ("\t"^data) (* NOTE: not valid but accepted by GNU patch *)
     | '+', data ->
         if t_nl then
           failwith "\"no newline at the end of file\" is not at the end of the file";
