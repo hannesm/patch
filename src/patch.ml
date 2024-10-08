@@ -30,15 +30,6 @@ let pp_hunk ~mine_no_nl ~their_no_nl ppf hunk =
     hunk.mine_start hunk.mine_len hunk.their_start hunk.their_len
     (unified_diff ~mine_no_nl ~their_no_nl hunk)
 
-let take data num =
-  let rec take0 num data acc =
-    match num, data with
-    | 0, _ -> List.rev acc
-    | n, x::xs -> take0 (pred n) xs (x :: acc)
-    | _ -> invalid_arg "take0 broken"
-  in
-  take0 num data []
-
 let drop data num =
   let rec drop data num =
     match num, data with
@@ -49,14 +40,86 @@ let drop data num =
   try drop data num with
   | Invalid_argument _ -> invalid_arg ("drop " ^ string_of_int num ^ " on " ^ string_of_int (List.length data))
 
-(* TODO verify that it applies cleanly *)
-let apply_hunk old (index, to_build) hunk =
-  try
-    let prefix = take (drop old index) (hunk.mine_start - index) in
-    (hunk.mine_start + hunk.mine_len, to_build @ prefix @ hunk.their)
-  with
-  | Invalid_argument _ -> invalid_arg ("apply_hunk " ^ string_of_int index ^ " old len " ^ string_of_int (List.length old) ^
-                                       " hunk start " ^ string_of_int hunk.mine_start ^ " hunk len " ^ string_of_int hunk.mine_len)
+let list_cut idx l =
+  let rec aux acc idx = function
+    | l when idx = 0 -> (List.rev acc, l)
+    | [] -> invalid_arg "list_cut"
+    | x::xs -> aux (x :: acc) (idx - 1) xs
+  in
+  aux [] idx l
+
+let rec apply_hunk ~cleanly ~fuzz (last_matched_line, offset, lines) ({mine_start; mine_len; mine; their_start = _; their_len; their} as hunk) =
+  let mine_start = mine_start + offset in
+  let patch_match ~search_offset =
+    let mine_start = mine_start + search_offset in
+    let prefix, rest = list_cut mine_start lines in
+    let actual_mine, suffix = list_cut mine_len rest in
+    if actual_mine <> (mine : string list) then
+      invalid_arg "unequal mine";
+    (* TODO: should we check their_len against List.length their? *)
+    (mine_start + mine_len, offset + (their_len - mine_len), prefix @ their @ suffix)
+  in
+  try patch_match ~search_offset:0
+  with Invalid_argument _ ->
+    if cleanly then
+      invalid_arg "apply_hunk"
+    else
+      let max_pos_offset = Stdlib.max 0 (List.length lines - mine_start - mine_len) in
+      let max_neg_offset = mine_start - last_matched_line in
+      let rec locate search_offset =
+        let aux search_offset max_offset =
+          try
+            if search_offset <= max_offset then
+              Some (patch_match ~search_offset)
+            else
+              None
+          with Invalid_argument _ -> None
+        in
+        if search_offset > max_pos_offset && search_offset > max_neg_offset then
+          if fuzz < 3 && List.length mine >= 2 && List.length their >= 2 then
+            let hunk =
+              if List.hd hunk.mine = (List.hd hunk.their : string) then
+                {
+                  mine_start = hunk.mine_start + 1;
+                  mine_len = hunk.mine_len - 1;
+                  mine = List.tl hunk.mine;
+                  their_start = hunk.their_start + 1;
+                  their_len = hunk.their_len - 1;
+                  their = List.tl hunk.their;
+                }
+              else
+                hunk
+            in
+            let hunk =
+              if (List.hd (List.rev hunk.mine) : string) = (List.hd (List.rev hunk.their) : string) then
+                {
+                  mine_start = hunk.mine_start;
+                  mine_len = hunk.mine_len - 1;
+                  mine = List.rev (List.tl (List.rev hunk.mine));
+                  their_start = hunk.their_start;
+                  their_len = hunk.their_len - 1;
+                  their = List.rev (List.tl (List.rev hunk.their));
+                }
+              else
+                hunk
+            in
+            if hunk.mine_len = 0 && hunk.their_len = 0 then
+              invalid_arg "apply_hunk: equal hunks... why?!"
+            else if mine_len = (hunk.mine_len : int) && their_len = (hunk.their_len : int) then
+              invalid_arg "apply_hunk: could not apply fuzz"
+            else
+              apply_hunk ~cleanly ~fuzz:(fuzz + 1) (last_matched_line, offset, lines) hunk
+          else
+            invalid_arg "apply_hunk"
+        else
+          match aux search_offset max_pos_offset with
+          | Some x -> x
+          | None ->
+              match aux (-search_offset) max_neg_offset with
+              | Some x -> x
+              | None -> locate (search_offset + 1)
+      in
+      locate 1
 
 let to_start_len data =
   (* input being "?19,23" *)
@@ -301,7 +364,7 @@ let parse ~p data =
   in
   doit ~p [] lines
 
-let patch filedata diff =
+let patch ~cleanly filedata diff =
   match diff.operation with
   | Rename_only _ -> filedata
   | Delete _ -> None
@@ -315,8 +378,7 @@ let patch filedata diff =
     end
   | Edit _ ->
     let old = match filedata with None -> [] | Some x -> to_lines x in
-    let idx, lines = List.fold_left (apply_hunk old) (0, []) diff.hunks in
-    let lines = lines @ drop old idx in
+    let _, _, lines = List.fold_left (apply_hunk ~cleanly ~fuzz:0) (0, 0, old) diff.hunks in
     let lines =
       match diff.mine_no_nl, diff.their_no_nl with
       | false, true -> (match List.rev lines with ""::tl -> List.rev tl | _ -> lines)

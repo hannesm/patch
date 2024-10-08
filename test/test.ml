@@ -306,7 +306,7 @@ let parse_diffs =
 let basic_apply file diff exp () =
   match Patch.parse ~p:0 diff with
   | [ diff ] ->
-    let res = Patch.patch file diff in
+    let res = Patch.patch ~cleanly:true file diff in
     Alcotest.(check (option string) __LOC__ exp res)
   | _ -> Alcotest.fail "expected one"
 
@@ -371,7 +371,7 @@ let multi_apply () =
   Alcotest.(check int __LOC__ (List.length multi_files) (List.length diffs));
   Alcotest.(check int __LOC__ (List.length multi_exp) (List.length diffs));
   List.iter2 (fun diff (input, expected) ->
-      let res = Patch.patch input diff in
+      let res = Patch.patch ~cleanly:true input diff in
       Alcotest.(check (option string) __LOC__ expected res))
     diffs (List.combine multi_files multi_exp)
 
@@ -437,7 +437,7 @@ let regression_test name () =
   let exp = opt_read (name ^ ".new") in
   match Patch.parse ~p:0 diff with
   | [ diff ] ->
-    let res = Patch.patch old diff in
+    let res = Patch.patch ~cleanly:true old diff in
     Alcotest.(check (option string) __LOC__ exp res)
   | ds -> Alcotest.fail ("expected one, found " ^ string_of_int (List.length ds))
 
