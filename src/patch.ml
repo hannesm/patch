@@ -163,7 +163,7 @@ let operation_eq a b = match a, b with
   | Create a, Create b -> String.equal a b
   | Edit (a, a'), Edit (b, b')
   | Rename_only (a, a'), Rename_only (b, b') -> String.equal a b && String.equal a' b'
-  | _ -> false
+  | Delete _, _ | Create _, _ | Edit _, _ | Rename_only _, _ -> false
 
 let no_file = "/dev/null"
 
@@ -312,7 +312,7 @@ let patch filedata diff =
         Some (String.concat "\n" lines)
       | _ -> assert false
     end
-  | _ ->
+  | Edit _ ->
     let old = match filedata with None -> [] | Some x -> to_lines x in
     let idx, lines = List.fold_left (apply_hunk old) (0, []) diff.hunks in
     let lines = lines @ drop old idx in
