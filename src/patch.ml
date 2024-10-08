@@ -85,18 +85,24 @@ let count_to_sl_sl data =
     None
 
 let sort_into_bags ~counter:(mine_len, their_len) dir mine their m_nl t_nl str =
-  if String.length str = 0 then
-    failwith "invalid patch (empty line)"
-  else if mine_len = 0 && their_len = 0 && String.get str 0 <> '\\' then
+  let both data =
+    if m_nl || t_nl then
+      failwith "\"no newline at the end of file\" is not at the end of the file";
+    if mine_len = 0 || their_len = 0 then
+      failwith "invalid patch (both size exhausted)";
+    let counter = (mine_len - 1, their_len - 1) in
+    Some (counter, `Both, (data :: mine), (data :: their), m_nl, t_nl)
+  in
+  let str_len = String.length str in
+  if mine_len = 0 && their_len = 0 && (str_len = 0 || str.[0] <> '\\') then
     None
+  else if str_len = 0 then
+    both "" (* NOTE: this should technically be a parse error but GNU patch accepts that and some patches in opam-repository do use this behaviour *)
   else match String.get str 0, String.slice ~start:1 str with
     | ' ', data ->
-        if m_nl || t_nl then
-          failwith "\"no newline at the end of file\" is not at the end of the file";
-        if mine_len = 0 || their_len = 0 then
-          failwith "invalid patch (both size exhausted)";
-        let counter = (mine_len - 1, their_len - 1) in
-        Some (counter, `Both, (data :: mine), (data :: their), m_nl, t_nl)
+        both data
+    | '\t', data ->
+        both ("\t"^data) (* NOTE: not valid but accepted by GNU patch *)
     | '+', data ->
         if t_nl then
           failwith "\"no newline at the end of file\" is not at the end of the file";
@@ -245,8 +251,10 @@ let strip_prefix ~p filename =
     | [] -> assert false
     | x::xs ->
         (* Per GNU patch's spec: A sequence of one or more adjacent slashes is counted as a single slash. *)
-        let filename = x :: List.filter (function "" -> false | _ -> true) xs in
-        String.concat "/" (drop filename p)
+        let filename' = x :: List.filter (function "" -> false | _ -> true) xs in
+        match drop filename' p with
+        | [] | exception Invalid_argument _ -> filename (* GNU patch just ignores -p when the filename doesn't have enough slashes to satisfy it *)
+        | l -> String.concat "/" l
 
 let operation_of_strings ~p mine their =
   let mine_fn = String.slice ~start:4 mine
@@ -266,7 +274,7 @@ let parse_one ~p data =
     | x::y::xs when String.is_prefix ~prefix:"rename from " x && String.is_prefix ~prefix:"rename to " y ->
       let hdr = Rename_only (String.slice ~start:12 x, String.slice ~start:10 y) in
       find_start ~hdr xs
-    | x::y::xs when String.is_prefix ~prefix:"--- " x ->
+    | x::y::xs when String.is_prefix ~prefix:"--- " x && String.is_prefix ~prefix:"+++ " y ->
       Some (operation_of_strings ~p x y), xs
     | _::xs -> find_start ?hdr xs
   in
