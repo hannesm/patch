@@ -68,6 +68,7 @@ let to_start_len data =
      and start = int_of_string start
      in
      let st = if len = 0 || start = 0 then start else pred start in
+     (* TODO: investigate start line. This shouldn't be start - 1 but the output of diff is also inconsistent *)
      (st, len)
 
 let count_to_sl_sl data =
@@ -320,7 +321,7 @@ let patch filedata diff =
       match diff.mine_no_nl, diff.their_no_nl with
       | false, true -> (match List.rev lines with ""::tl -> List.rev tl | _ -> lines)
       | true, false -> lines @ [ "" ]
-      | false, false when filedata = None -> lines @ [ "" ]
+      | false, false when filedata = None -> lines @ [ "" ] (* TODO: i'm not sure about this *)
       | false, false -> lines
       | true, true -> lines
     in
