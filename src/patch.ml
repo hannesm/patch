@@ -192,7 +192,11 @@ let to_hunk count data mine_no_nl their_no_nl =
   | Some ((mine_start, mine_len), (their_start, their_len)) ->
     let counter = (mine_len, their_len) in
     let rec step ~counter dir mine their mine_no_nl their_no_nl = function
-      | [] | [""] -> (List.rev mine, List.rev their, mine_no_nl, their_no_nl, [])
+      | [] | [""] when counter = (0, 0) -> (List.rev mine, List.rev their, mine_no_nl, their_no_nl, [])
+      | [""] when counter = (1, 1) -> (List.rev ("" :: mine), List.rev ("" :: their), mine_no_nl, their_no_nl, []) (* GNU patch behaviour *)
+      | [""] when counter = (2, 2) -> (List.rev ("" :: "" :: mine), List.rev ("" :: "" :: their), mine_no_nl, their_no_nl, []) (* GNU patch behaviour *)
+      | [""] when counter = (3, 3) -> (List.rev ("" :: "" :: "" :: mine), List.rev ("" :: "" :: "" :: their), mine_no_nl, their_no_nl, []) (* GNU patch behaviour *)
+      | [] | [""] -> failwith "bad file"
       | x::xs -> match sort_into_bags ~counter dir mine their mine_no_nl their_no_nl x with
         | Some (counter, dir, mine, their, mine_no_nl', their_no_nl') -> step ~counter dir mine their mine_no_nl' their_no_nl' xs
         | None -> (List.rev mine, List.rev their, mine_no_nl, their_no_nl, x :: xs)
