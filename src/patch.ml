@@ -317,8 +317,8 @@ let strip_prefix ~p filename =
         let filename' = x :: List.filter (function "" -> false | _ -> true) xs in
         let rec drop_up_to n = function
           | [] -> assert false
-          | [_] as l -> l
           | l when n = 0 -> l
+          | [_] -> failwith "wrong prefix"
           | _::xs -> drop_up_to (n - 1) xs
         in
         (* GNU patch just drops the max number of slashes when the filename doesn't have enough slashes to satisfy -p *)
