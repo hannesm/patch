@@ -12,3 +12,5 @@
  (name crowbar_test)
  (modules crowbar_test)
  (libraries patch crowbar))
+
+(dirs :standard \ opam-repository)
