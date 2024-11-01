@@ -333,19 +333,28 @@ let operation_of_strings ~p mine their =
   | _, Error msg -> raise (Parse_error {msg; lines = [their]})
 
 let parse_one ~p data =
+  let open (struct
+    type mode = Git
+  end) in
   (* first locate --- and +++ lines *)
-  let rec find_start ?hdr = function
-    | [] -> hdr, []
-    | x::y::xs when String.is_prefix ~prefix:"rename from " x && String.is_prefix ~prefix:"rename to " y ->
-      let hdr = Rename_only (String.slice ~start:12 x, String.slice ~start:10 y) in
-      find_start ~hdr xs
+  let rec find_start ~mode ~git_action = function
+    | [] -> git_action, []
+    | x::xs when String.is_prefix ~prefix:"diff --git " x ->
+        begin match mode, git_action with
+        | (None | Some Git), None -> find_start ~mode:(Some Git) ~git_action:None xs
+        | None, Some _ -> assert false (* impossible state *)
+        | Some Git, Some git_action -> (Some git_action, x :: xs)
+        end
+    | x::y::xs when mode = Some Git && String.is_prefix ~prefix:"rename from " x && String.is_prefix ~prefix:"rename to " y ->
+      let git_action = Some (Rename_only (String.slice ~start:12 x, String.slice ~start:10 y)) in
+      find_start ~mode ~git_action xs
     | x::y::xs when String.is_prefix ~prefix:"--- " x && String.is_prefix ~prefix:"+++ " y ->
       Some (operation_of_strings ~p x y), xs
     | x::y::_xs when String.is_prefix ~prefix:"*** " x && String.is_prefix ~prefix:"--- " y ->
       failwith "Context diffs are not supported"
-    | _::xs -> find_start ?hdr xs
+    | _::xs -> find_start ~mode ~git_action xs
   in
-  match find_start data with
+  match find_start ~mode:None ~git_action:None data with
   | Some (Rename_only _ as operation), rest ->
     let hunks = [] and mine_no_nl = false and their_no_nl = false in
     Some ({ operation ; hunks ; mine_no_nl ; their_no_nl }, rest)
