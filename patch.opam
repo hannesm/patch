@@ -23,3 +23,4 @@ description: """
 This is a library which parses unified diff and git diff output, and can
 apply a patch in memory.
 """
+x-maintenance-intent: [ "(latest)" ]
