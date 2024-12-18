@@ -61,7 +61,7 @@ val parse : p:int -> string -> t list
 
     @raise Parse_error if a filename was unable to be parsed *)
 
-val patch : string option -> t -> string option
+val patch : cleanly:bool -> string option -> t -> string option
 (** [patch file_contents diff] applies [diff] on [file_contents], resulting in
     the new file contents (or None if deleted). *)
 

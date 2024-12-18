@@ -141,7 +141,7 @@ let check_Patch file1 file2 =
   | _::_::_ -> Crowbar.fail "not a single diff!"
   | [diff] ->
     let data = string_of_file file1 in
-    match Patch.patch (Some data) diff with
+    match Patch.patch ~cleanly:true (Some data) diff with
     | None ->
       let exp = string_of_file file2 in
       Crowbar.fail ("input file\n" ^ data ^ "\ndiff\n" ^ text_diff ^ "\nexpected\n" ^ exp)

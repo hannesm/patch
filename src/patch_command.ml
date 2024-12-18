@@ -21,7 +21,7 @@ let run ~p ~input ~diff =
                    which is not supported by this command.";
     exit exit_several_chunks
   | [diff] ->
-    begin match Patch.patch (Some input) diff with
+    begin match Patch.patch ~cleanly:true (Some input) diff with
     | None ->
       Printf.eprintf "Error during patching:\n%!";
       exit exit_patch_failure
