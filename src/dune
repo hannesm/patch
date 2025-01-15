@@ -4,8 +4,6 @@
  (public_name patch)
  (modules patch patch_lib fname))
 
-(ocamllex fname)
-
 (executable
  (name patch_command)
  (modules patch_command)
