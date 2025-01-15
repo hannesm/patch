@@ -334,20 +334,32 @@ let operation_of_strings ~p mine their =
 
 let parse_one ~p data =
   let open (struct
-    type mode = Git
+    type mode = Git of string option
   end) in
+  let is_git = function
+    | Some (Git _) -> true
+    | None -> false
+  in
   (* first locate --- and +++ lines *)
   let rec find_start ~mode ~git_action = function
     | [] -> git_action, []
     | x::xs when String.is_prefix ~prefix:"diff --git " x ->
+        let git_filename = Fname.parse_git_header (String.slice ~start:11 x) in
         begin match mode, git_action with
-        | (None | Some Git), None -> find_start ~mode:(Some Git) ~git_action:None xs
+        | (None | Some (Git _)), None -> find_start ~mode:(Some (Git git_filename)) ~git_action:None xs
         | None, Some _ -> assert false (* impossible state *)
-        | Some Git, Some git_action -> (Some git_action, x :: xs)
+        | Some (Git _), Some git_action -> (Some git_action, x :: xs)
         end
-    | x::y::xs when mode = Some Git && String.is_prefix ~prefix:"rename from " x && String.is_prefix ~prefix:"rename to " y ->
+    | x::y::xs when is_git mode && String.is_prefix ~prefix:"rename from " x && String.is_prefix ~prefix:"rename to " y ->
       let git_action = Some (Rename_only (String.slice ~start:12 x, String.slice ~start:10 y)) in
       find_start ~mode ~git_action xs
+    | x::xs when is_git mode && String.is_prefix ~prefix:"deleted file mode " x ->
+        let git_action = match mode with
+          | Some (Git (Some git_filename)) -> Some (Delete git_filename)
+          | Some (Git None) -> git_action
+          | None -> assert false
+        in
+        find_start ~mode ~git_action xs
     | x::y::xs when String.is_prefix ~prefix:"--- " x && String.is_prefix ~prefix:"+++ " y ->
       Some (operation_of_strings ~p x y), xs
     | x::y::_xs when String.is_prefix ~prefix:"*** " x && String.is_prefix ~prefix:"--- " y ->
