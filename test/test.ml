@@ -824,8 +824,8 @@ let unified_diff_spaces =
 let git_diff_spaces = {|\
 diff --git a/foo bar b/foo bar
 index ef00db3..88adca3 100644
---- a/foo bar
-+++ b/foo bar
+--- a/foo bar	
++++ b/foo bar	
 @@ -1 +1 @@
 -This is wrong.
 +This is right.
@@ -843,7 +843,7 @@ let busybox_diff_spaces = {|\
 |}
 
 let busybox_diff_spaces =
-  operations [Patch.Edit ("a/foo bar", "b/foo bar")] busybox_diff_spaces
+  operations [Patch.Edit ("a/foo", "b/foo")] busybox_diff_spaces
 
 let unified_diff_quotes = {|\
 --- "foo bar \"baz\""	2024-09-27 11:09:48.325541553 +0200
@@ -878,7 +878,7 @@ let busybox_diff_quotes = {|\
 |}
 
 let busybox_diff_quotes =
-  operations [Patch.Edit ({|foo bar "baz"|}, {|"foo" bar baz|})] busybox_diff_quotes
+  operations [Patch.Edit ({|foo|}, {|foo|})] busybox_diff_quotes
 
 let dev_null_like = {|\
 --- /dev/null_but_actually_not

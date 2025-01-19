@@ -1,7 +1,7 @@
 module String = Patch_lib.String
 
 type lexer_output =
-  | Quoted of string
+  | Quoted of (string * string)
   | Unquoted
   | Error of string
 
@@ -41,7 +41,7 @@ let lex_quoted_char s len i =
 let rec lex_quoted_filename buf s len i =
   if len > 0 then
     match s.[i] with
-    | '"' when len = 1 -> Quoted (Buffer.contents buf)
+    | '"' -> Quoted (Buffer.contents buf, String.slice ~start:(i + 1) s)
     | '\\' when len > 2 ->
         let char_size =
           match lex_quoted_char s (len - 1) (i + 1) with
@@ -63,34 +63,47 @@ let lex_filename buf s len =
   else
     Error "empty filename"
 
-let parse_filename s =
+let parse_filename ~allow_space s =
   match lex_filename (Buffer.create 128) s (String.length s) with
   | Quoted x -> Ok x
-  | Unquoted -> Ok s
+  | Unquoted when not allow_space ->
+      begin match String.cut ' ' s with
+      | None -> Ok (s, "")
+      | Some x -> Ok x
+      end
+  | Unquoted -> Ok (s, "")
   | Error msg -> Error msg
 
 let parse s =
-  let filename, date =
+  let filename_and_date =
     match String.cut '\t' s with
-    | None -> (s, "")
-    | Some x -> x
+    | None ->
+        parse_filename ~allow_space:false s
+    | Some (filename, date) ->
+        match parse_filename ~allow_space:true filename with
+        | Ok (filename, "") -> Ok (filename, date)
+        | Ok _ -> Error "Unexpected character after closing double-quote"
+        | Error _ as err -> err
   in
-  if filename = "/dev/null" ||
-     String.is_prefix ~prefix:"1970-" date ||
-     String.is_prefix ~prefix:"1969-" date ||
-     String.is_suffix ~suffix:" 1970" date ||
-     String.is_suffix ~suffix:" 1969" date then
-    (* See https://github.com/hannesm/patch/issues/8 *)
-    Ok None
-  else
-    match parse_filename filename with
-    | Ok x -> Ok (Some x)
-    | Error _ as err -> err
+  match filename_and_date with
+  | Ok (filename, date) ->
+      if filename = "/dev/null" ||
+         let date = String.trim date in
+         String.is_prefix ~prefix:"1970-" date ||
+         String.is_prefix ~prefix:"1969-" date ||
+         String.is_suffix ~suffix:" 1970" date ||
+         String.is_suffix ~suffix:" 1969" date then
+        (* See https://github.com/hannesm/patch/issues/8 *)
+        Ok None
+      else
+        Ok (Some filename)
+  | Error _ as err -> err
 
 let parse_git_header s =
   let parse s =
-    match parse_filename s with
-    | Ok s -> Ok (String.cut '/' s)
+    match parse_filename ~allow_space:true s with
+    | Ok (s, "") -> Ok (String.cut '/' s)
+    | Ok _ -> Error "Unexpected character after closing double-quote in header"
     | Error _ as err -> err
   in
   let rec loop s len i =
