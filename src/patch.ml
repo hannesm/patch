@@ -26,7 +26,7 @@ let unified_diff ~mine_no_nl ~their_no_nl hunk =
                       (if their_no_nl then no_nl_str else []))
 
 let pp_hunk ~mine_no_nl ~their_no_nl ppf hunk =
-  Format.fprintf ppf "@@@@ -%d,%d +%d,%d @@@@\n%s\n"
+  Format.fprintf ppf "%@%@ -%d,%d +%d,%d %@%@\n%s\n"
     hunk.mine_start hunk.mine_len hunk.their_start hunk.their_len
     (unified_diff ~mine_no_nl ~their_no_nl hunk)
 
