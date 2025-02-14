@@ -125,7 +125,7 @@ let to_start_len data =
      (st, len)
 
 let count_to_sl_sl data =
-  if String.is_prefix ~prefix:"@@" data then
+  if String.is_prefix ~prefix:"@@ -" data then
     (* input: "@@ -19,23 +19,12 @@ bla" *)
     (* output: ((19,23), (19, 12)) *)
     match List.filter (function "" -> false | _ -> true) (String.cuts '@' data) with
