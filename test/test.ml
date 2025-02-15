@@ -171,41 +171,41 @@ let basic_diffs =
 
 let basic_hunks =
   let open Patch in
-  let hunk1 = [ { mine_start = 0 ; mine_len = 1 ; mine = ["foo"] ;
-                  their_start = 0 ; their_len = 1 ; their = ["foobar"] } ]
+  let hunk1 = [ { mine_start = 1 ; mine_len = 1 ; mine = ["foo"] ;
+                  their_start = 1 ; their_len = 1 ; their = ["foobar"] } ]
   in
   let diff = { operation = Edit ("a", "b") ; hunks = hunk1 ; mine_no_nl = false ; their_no_nl = false } in
   let hunk2 =
-    [ { mine_start = 1 ; mine_len = 7 ; mine = [ "bar" ; "baz" ; "boo" ; "foo" ; "bar" ; "baz" ; "boo" ] ;
-        their_start = 1 ; their_len = 7 ; their = [ "bar" ; "baz" ; "boo" ; "foo2" ; "bar" ; "baz" ; "boo" ] } ]
+    [ { mine_start = 2 ; mine_len = 7 ; mine = [ "bar" ; "baz" ; "boo" ; "foo" ; "bar" ; "baz" ; "boo" ] ;
+        their_start = 2 ; their_len = 7 ; their = [ "bar" ; "baz" ; "boo" ; "foo2" ; "bar" ; "baz" ; "boo" ] } ]
   in
   let hunk3 = [
-    { mine_start = 0 ; mine_len = 5 ; mine = [ "foo" ; "bar" ; "baz" ; "boo" ; "foo" ] ;
-      their_start = 0 ; their_len = 5 ; their = [ "foo" ; "bar2" ; "baz" ; "boo" ; "foo" ] } ;
-    { mine_start = 7 ; mine_len = 4 ; mine = [ "boo" ; "foo" ; "bar" ; "baz" ] ;
-      their_start = 7 ; their_len = 4 ; their = [ "boo" ; "foo" ; "bar" ; "baz3" ] }
+    { mine_start = 1 ; mine_len = 5 ; mine = [ "foo" ; "bar" ; "baz" ; "boo" ; "foo" ] ;
+      their_start = 1 ; their_len = 5 ; their = [ "foo" ; "bar2" ; "baz" ; "boo" ; "foo" ] } ;
+    { mine_start = 8 ; mine_len = 4 ; mine = [ "boo" ; "foo" ; "bar" ; "baz" ] ;
+      their_start = 8 ; their_len = 4 ; their = [ "boo" ; "foo" ; "bar" ; "baz3" ] }
   ] in
   let hunk4 = [
-    { mine_start = 0 ; mine_len = 6 ; mine = [ "foo" ; "foo" ; "foo" ; "foo" ; "foo" ; "foo" ] ;
-      their_start = 0 ; their_len = 7 ; their = [ "foo" ; "foo" ; "foo" ; "foo3" ; "foo" ; "foo" ; "foo" ] } ;
-    { mine_start = 8 ; mine_len = 6 ; mine = [ "foo" ; "foo" ; "foo" ; "foo" ; "foo" ; "foo" ] ;
-      their_start = 9 ; their_len = 7 ; their = [ "foo" ; "foo" ; "foo" ; "foo5" ; "foo" ; "foo" ; "foo" ] } ;
-    { mine_start = 30 ; mine_len = 6 ; mine = [ "foo" ; "foo" ; "foo" ; "foo" ; "foo" ; "foo" ] ;
-      their_start = 32 ; their_len = 11 ; their = [ "foo" ; "foo" ; "foo" ; "bar" ; "foo" ; "foo" ; "foo" ; "foo" ; "foo" ; "foo" ; "bar2" ] }
+    { mine_start = 1 ; mine_len = 6 ; mine = [ "foo" ; "foo" ; "foo" ; "foo" ; "foo" ; "foo" ] ;
+      their_start = 1 ; their_len = 7 ; their = [ "foo" ; "foo" ; "foo" ; "foo3" ; "foo" ; "foo" ; "foo" ] } ;
+    { mine_start = 9 ; mine_len = 6 ; mine = [ "foo" ; "foo" ; "foo" ; "foo" ; "foo" ; "foo" ] ;
+      their_start = 10 ; their_len = 7 ; their = [ "foo" ; "foo" ; "foo" ; "foo5" ; "foo" ; "foo" ; "foo" ] } ;
+    { mine_start = 31 ; mine_len = 6 ; mine = [ "foo" ; "foo" ; "foo" ; "foo" ; "foo" ; "foo" ] ;
+      their_start = 33 ; their_len = 11 ; their = [ "foo" ; "foo" ; "foo" ; "bar" ; "foo" ; "foo" ; "foo" ; "foo" ; "foo" ; "foo" ; "bar2" ] }
   ] in
   let hunk5= [
     { mine_start = 0 ; mine_len = 0 ; mine = [] ;
-      their_start = 0 ; their_len = 1 ; their = [ "foo" ] }
+      their_start = 1 ; their_len = 1 ; their = [ "foo" ] }
   ] in
   let diff5 = { diff with operation = Create "b" ; hunks = hunk5 } in
   let hunk6 = [
-    { mine_start = 0 ; mine_len = 1 ; mine = [ "foo" ] ;
+    { mine_start = 1 ; mine_len = 1 ; mine = [ "foo" ] ;
       their_start = 0 ; their_len = 0 ; their = [ ] }
   ] in
   let diff6 = { diff with operation = Delete "a" ; hunks = hunk6 } in
   let hunk7 = [
-    { mine_start = 0 ; mine_len = 1 ; mine = [ "foo" ] ;
-      their_start = 0 ; their_len = 2 ; their = [ "foo" ; "foo" ] }
+    { mine_start = 1 ; mine_len = 1 ; mine = [ "foo" ] ;
+      their_start = 1 ; their_len = 2 ; their = [ "foo" ; "foo" ] }
   ] in
   let diff7 = { diff with operation = Edit ("a", "b") ; hunks = hunk7 } in
   List.map (fun d -> [ d ])
@@ -341,23 +341,23 @@ let multi_diff = {|
 
 let multi_hunks =
   let open Patch in
-  let hunk1 = [ { mine_start = 0 ; mine_len = 1 ; mine = ["bar"] ;
-                  their_start = 0 ; their_len = 1 ; their = ["foobar"] } ]
+  let hunk1 = [ { mine_start = 1 ; mine_len = 1 ; mine = ["bar"] ;
+                  their_start = 1 ; their_len = 1 ; their = ["foobar"] } ]
   in
   let diff1 = { operation = Edit ("foo", "bar") ; hunks = hunk1 ; mine_no_nl = false ; their_no_nl = false } in
   let hunk2 =
-    [ { mine_start = 0 ; mine_len = 1 ; mine = [ "baz" ] ;
+    [ { mine_start = 1 ; mine_len = 1 ; mine = [ "baz" ] ;
         their_start = 0 ; their_len = 0 ; their = [] } ]
   in
   let diff2 = { operation = Delete "foobar" ; hunks = hunk2 ; mine_no_nl = false ; their_no_nl = false } in
   let hunk3 = [
     { mine_start = 0 ; mine_len = 0 ; mine = [ ] ;
-      their_start = 0 ; their_len = 1 ; their = [ "baz" ] }
+      their_start = 1 ; their_len = 1 ; their = [ "baz" ] }
   ] in
   let diff3 = { operation = Create "baz" ; hunks = hunk3 ;  mine_no_nl = false ; their_no_nl = true } in
   let hunk4 = [
-    { mine_start = 0 ; mine_len = 1 ; mine = [ "foobarbaz" ] ;
-      their_start = 0 ; their_len = 1 ; their = [ "foobar" ] }
+    { mine_start = 1 ; mine_len = 1 ; mine = [ "foobarbaz" ] ;
+      their_start = 1 ; their_len = 1 ; their = [ "foobar" ] }
   ] in
   let diff4 = { operation = Edit ("foobarbaz", "foobarbaz") ; hunks = hunk4 ;  mine_no_nl = false ; their_no_nl = false } in
   [ diff1 ; diff2 ; diff3 ; diff4 ]
@@ -390,8 +390,8 @@ let regression_diff, regression_hunks =
 +aaa
 |},
   [ { operation = Edit ("a", "b");
-      hunks = [ { mine_start = 0; mine_len = 1; mine = ["-- /dev/null"];
-                  their_start = 0; their_len = 1; their = ["aaa"]} ];
+      hunks = [ { mine_start = 1; mine_len = 1; mine = ["-- /dev/null"];
+                  their_start = 1; their_len = 1; their = ["aaa"]} ];
       mine_no_nl = false; their_no_nl = false} ]
 
 let basic_regression_diffs = [
@@ -481,7 +481,7 @@ eee|}^(if their_no_nl then "" else "\n")
   let hunk =
     { Patch.operation = Create "b";
       hunks = [ { mine_start = 0; mine_len = 0; mine = [];
-                  their_start = 0; their_len = 5; their = ["aaa"; "bbb"; "ccc"; "ddd"; "eee"]} ];
+                  their_start = 1; their_len = 5; their = ["aaa"; "bbb"; "ccc"; "ddd"; "eee"]} ];
       mine_no_nl = false; their_no_nl}
   in
   diff, Some hunk
@@ -503,7 +503,7 @@ eee|}^(if mine_no_nl then "" else "\n")
   let diff = Patch.diff (Delete "a") (Some a) b in
   let hunk =
     { Patch.operation = Delete "a";
-      hunks = [ { mine_start = 0; mine_len = 5; mine = ["aaa"; "bbb"; "ccc"; "ddd"; "eee"];
+      hunks = [ { mine_start = 1; mine_len = 5; mine = ["aaa"; "bbb"; "ccc"; "ddd"; "eee"];
                   their_start = 0; their_len = 0; their = []} ];
       mine_no_nl; their_no_nl = false}
   in
@@ -525,8 +525,8 @@ let diff_tests_empty_gen ~mine_no_nl ~their_no_nl =
       let mine_len, mine = if mine_no_nl then 0, [] else 1, [""] in
       let their_len, their = if their_no_nl then 0, [] else 1, [""] in
       Some { Patch.operation = Edit ("a", "b");
-             hunks = [ { mine_start = 0; mine_len; mine;
-                         their_start = 0; their_len; their} ];
+             hunks = [ { mine_start = if mine_no_nl then 0 else 1; mine_len; mine;
+                         their_start = if their_no_nl then 0 else 1; their_len; their} ];
              mine_no_nl = false; their_no_nl = false}
   in
   diff, hunk
@@ -560,8 +560,8 @@ eee|}^(if their_no_nl then "" else "\n")
       None
     else
       Some { Patch.operation = Edit ("a", "b");
-             hunks = [ { mine_start = 4; mine_len = 1; mine = ["eee"];
-                         their_start = 4; their_len = 1; their = ["eee"]} ];
+             hunks = [ { mine_start = 5; mine_len = 1; mine = ["eee"];
+                         their_start = 5; their_len = 1; their = ["eee"]} ];
              mine_no_nl; their_no_nl}
   in
   diff, hunk
@@ -592,8 +592,8 @@ eee|}^(if their_no_nl then "" else "\n")
   let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
   let hunk =
     { Patch.operation = Edit ("a", "b");
-      hunks = [ { mine_start = 2; mine_len = 3; mine = ["ccc"; "ddd"; "eee"];
-                  their_start = 2; their_len = 3; their = ["test1"; "test2"; "eee"]} ];
+      hunks = [ { mine_start = 3; mine_len = 3; mine = ["ccc"; "ddd"; "eee"];
+                  their_start = 3; their_len = 3; their = ["test1"; "test2"; "eee"]} ];
       mine_no_nl; their_no_nl}
   in
   diff, Some hunk
@@ -623,8 +623,8 @@ eee|}^(if their_no_nl then "" else "\n")
   let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
   let hunk =
     { Patch.operation = Edit ("a", "b");
-      hunks = [ { mine_start = 2; mine_len = 3; mine = ["ccc"; "ddd"; "eee"];
-                  their_start = 2; their_len = 2; their = ["test1"; "eee"]} ];
+      hunks = [ { mine_start = 3; mine_len = 3; mine = ["ccc"; "ddd"; "eee"];
+                  their_start = 3; their_len = 2; their = ["test1"; "eee"]} ];
       mine_no_nl; their_no_nl}
   in
   diff, Some hunk
@@ -655,8 +655,8 @@ eee|}^(if their_no_nl then "" else "\n")
   let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
   let hunk =
     { Patch.operation = Edit ("a", "b");
-      hunks = [ { mine_start = 0; mine_len = 5; mine = ["aaa"; "bbb"; "ccc"; "ddd"; "eee"];
-                  their_start = 0; their_len = 5; their = ["test1"; "bbb"; "ccc"; "ddd"; "eee"]} ];
+      hunks = [ { mine_start = 1; mine_len = 5; mine = ["aaa"; "bbb"; "ccc"; "ddd"; "eee"];
+                  their_start = 1; their_len = 5; their = ["test1"; "bbb"; "ccc"; "ddd"; "eee"]} ];
       mine_no_nl; their_no_nl}
   in
   diff, Some hunk
@@ -686,8 +686,8 @@ eee|}^(if their_no_nl then "" else "\n")
   let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
   let hunk =
     { Patch.operation = Edit ("a", "b");
-      hunks = [ { mine_start = 0; mine_len = 5; mine = ["aaa"; "bbb"; "ccc"; "ddd"; "eee"];
-                  their_start = 0; their_len = 4; their = ["test1"; "ccc"; "ddd"; "eee"]} ];
+      hunks = [ { mine_start = 1; mine_len = 5; mine = ["aaa"; "bbb"; "ccc"; "ddd"; "eee"];
+                  their_start = 1; their_len = 4; their = ["test1"; "ccc"; "ddd"; "eee"]} ];
       mine_no_nl; their_no_nl}
   in
   diff, Some hunk
@@ -718,8 +718,8 @@ test1|}^(if their_no_nl then "" else "\n")
   let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
   let hunk =
     { Patch.operation = Edit ("a", "b");
-      hunks = [ { mine_start = 4; mine_len = 1; mine = ["eee"];
-                  their_start = 4; their_len = 1; their = ["test1"]} ];
+      hunks = [ { mine_start = 5; mine_len = 1; mine = ["eee"];
+                  their_start = 5; their_len = 1; their = ["test1"]} ];
       mine_no_nl; their_no_nl}
   in
   diff, Some hunk
@@ -749,8 +749,8 @@ test1|}^(if their_no_nl then "" else "\n")
   let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
   let hunk =
     { Patch.operation = Edit ("a", "b");
-      hunks = [ { mine_start = 3; mine_len = 2; mine = ["ddd"; "eee"];
-                  their_start = 3; their_len = 1; their = ["test1"]} ];
+      hunks = [ { mine_start = 4; mine_len = 2; mine = ["ddd"; "eee"];
+                  their_start = 4; their_len = 1; their = ["test1"]} ];
       mine_no_nl; their_no_nl}
   in
   diff, Some hunk

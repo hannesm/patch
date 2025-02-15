@@ -42,7 +42,7 @@ let rec apply_hunk ~cleanly ~fuzz (last_matched_line, offset, lines) ({mine_star
   let mine_start = mine_start + offset in
   let patch_match ~search_offset =
     let mine_start = mine_start + search_offset in
-    let prefix, rest = list_cut mine_start lines in
+    let prefix, rest = list_cut (Stdlib.max 0 (mine_start - 1)) lines in
     let actual_mine, suffix = list_cut mine_len rest in
     if actual_mine <> (mine : string list) then
       invalid_arg "unequal mine";
@@ -54,7 +54,7 @@ let rec apply_hunk ~cleanly ~fuzz (last_matched_line, offset, lines) ({mine_star
     if cleanly then
       invalid_arg "apply_hunk"
     else
-      let max_pos_offset = Stdlib.max 0 (List.length lines - mine_start - mine_len) in
+      let max_pos_offset = Stdlib.max 0 (List.length lines - Stdlib.max 0 (mine_start - 1) - mine_len) in
       let max_neg_offset = mine_start - last_matched_line in
       let rec locate search_offset =
         let aux search_offset max_offset =
@@ -114,15 +114,9 @@ let rec apply_hunk ~cleanly ~fuzz (last_matched_line, offset, lines) ({mine_star
 let to_start_len data =
   (* input being "?19,23" *)
   match String.cut ',' (String.slice ~start:1 data) with
-  | None when data = "+1" || data = "-1" -> (0, 1)
+  | None when data = "+1" || data = "-1" -> (1, 1)
   | None -> invalid_arg ("start_len broken in " ^ data)
-  | Some (start, len) ->
-     let len = int_of_string len
-     and start = int_of_string start
-     in
-     let st = if len = 0 || start = 0 then start else pred start in
-     (* TODO: investigate start line. This shouldn't be start - 1 but the output of diff is also inconsistent *)
-     (st, len)
+  | Some (start, len) -> (int_of_string start, int_of_string len)
 
 let count_to_sl_sl data =
   if String.is_prefix ~prefix:"@@ -" data then
@@ -465,8 +459,8 @@ let diff_op operation a b =
           l1 l2
   in
   aux
-    ~mine_start:0 ~mine_len:0 ~mine:[]
-    ~their_start:0 ~their_len:0 ~their:[]
+    ~mine_start:(if a = "" then 0 else 1) ~mine_len:0 ~mine:[]
+    ~their_start:(if b = "" then 0 else 1) ~their_len:0 ~their:[]
     (to_lines a) (to_lines b)
 
 let diff operation a b = match a, b with
