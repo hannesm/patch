@@ -39,3 +39,10 @@ module String = struct
     let len = stop - start in
     String.sub str start len
 end
+
+module List = struct
+  let rec last = function
+    | [] -> invalid_arg "List.last"
+    | [x] -> x
+    | _::xs -> last xs
+end

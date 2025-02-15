@@ -5,3 +5,7 @@ module String : sig
   val cuts : char -> string -> string list
   val slice : ?start:int -> ?stop:int -> string -> string
 end
+
+module List : sig
+  val last : 'a list -> 'a
+end

@@ -79,7 +79,7 @@ let rec apply_hunk ~cleanly ~fuzz (last_matched_line, offset, lines) ({mine_star
                 hunk
             in
             let hunk =
-              if (List.hd (List.rev hunk.mine) : string) = (List.hd (List.rev hunk.their) : string) then
+              if Lib.List.last hunk.mine = (Lib.List.last hunk.their : string) then
                 {
                   mine_start = hunk.mine_start;
                   mine_len = hunk.mine_len - 1;
