@@ -38,14 +38,4 @@ module String = struct
     in
     let len = stop - start in
     String.sub str start len
-
-  let trim = String.trim
-
-  let get = String.get
-
-  let concat = String.concat
-
-  let length = String.length
-
-  let equal = String.equal
 end

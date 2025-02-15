@@ -1,5 +1,3 @@
-module String = Lib.String
-
 type lexer_output =
   | Quoted of (string * string)
   | Unquoted
@@ -41,7 +39,7 @@ let lex_quoted_char s len i =
 let rec lex_quoted_filename buf s len i =
   if len > 0 then
     match s.[i] with
-    | '"' -> Quoted (Buffer.contents buf, String.slice ~start:(i + 1) s)
+    | '"' -> Quoted (Buffer.contents buf, Lib.String.slice ~start:(i + 1) s)
     | '\\' when len > 2 ->
         let char_size =
           match lex_quoted_char s (len - 1) (i + 1) with
@@ -67,7 +65,7 @@ let parse_filename ~allow_space s =
   match lex_filename (Buffer.create 128) s (String.length s) with
   | Quoted x -> Ok x
   | Unquoted when not allow_space ->
-      begin match String.cut ' ' s with
+      begin match Lib.String.cut ' ' s with
       | None -> Ok (s, "")
       | Some x -> Ok x
       end
@@ -76,7 +74,7 @@ let parse_filename ~allow_space s =
 
 let parse s =
   let filename_and_date =
-    match String.cut '\t' s with
+    match Lib.String.cut '\t' s with
     | None ->
         parse_filename ~allow_space:false s
     | Some (filename, date) ->
@@ -89,10 +87,10 @@ let parse s =
   | Ok (filename, date) ->
       if filename = "/dev/null" ||
          let date = String.trim date in
-         String.is_prefix ~prefix:"1970-" date ||
-         String.is_prefix ~prefix:"1969-" date ||
-         String.is_suffix ~suffix:" 1970" date ||
-         String.is_suffix ~suffix:" 1969" date then
+         Lib.String.is_prefix ~prefix:"1970-" date ||
+         Lib.String.is_prefix ~prefix:"1969-" date ||
+         Lib.String.is_suffix ~suffix:" 1970" date ||
+         Lib.String.is_suffix ~suffix:" 1969" date then
         (* See https://github.com/hannesm/patch/issues/8 *)
         Ok None
       else
@@ -102,7 +100,7 @@ let parse s =
 let parse_git_header s =
   let parse s =
     match parse_filename ~allow_space:true s with
-    | Ok (s, "") -> Ok (String.cut '/' s)
+    | Ok (s, "") -> Ok (Lib.String.cut '/' s)
     | Ok _ -> Error "Unexpected character after closing double-quote in header"
     | Error _ as err -> err
   in
@@ -110,8 +108,8 @@ let parse_git_header s =
     if i < len then
       match s.[i] with
       | ' ' | '\t' ->
-          let a = parse (String.slice ~stop:i s) in
-          let b = parse (String.slice ~start:(i + 1) s) in
+          let a = parse (Lib.String.slice ~stop:i s) in
+          let b = parse (Lib.String.slice ~start:(i + 1) s) in
           begin match a, b with
           | Ok (Some ("a", a)), Ok (Some ("b", b))
             when a = (b : string) ->

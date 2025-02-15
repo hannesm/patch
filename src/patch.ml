@@ -1,5 +1,3 @@
-module String = Lib.String
-
 type hunk = {
   mine_start : int ;
   mine_len : int ;
@@ -113,19 +111,19 @@ let rec apply_hunk ~cleanly ~fuzz (last_matched_line, offset, lines) ({mine_star
 
 let to_start_len data =
   (* input being "?19,23" *)
-  match String.cut ',' (String.slice ~start:1 data) with
+  match Lib.String.cut ',' (Lib.String.slice ~start:1 data) with
   | None when data = "+1" || data = "-1" -> (1, 1)
   | None -> invalid_arg ("start_len broken in " ^ data)
   | Some (start, len) -> (int_of_string start, int_of_string len)
 
 let count_to_sl_sl data =
-  if String.is_prefix ~prefix:"@@ -" data then
+  if Lib.String.is_prefix ~prefix:"@@ -" data then
     (* input: "@@ -19,23 +19,12 @@ bla" *)
     (* output: ((19,23), (19, 12)) *)
-    match List.filter (function "" -> false | _ -> true) (String.cuts '@' data) with
+    match List.filter (function "" -> false | _ -> true) (Lib.String.cuts '@' data) with
     | numbers::_ ->
        let nums = String.trim numbers in
-       (match String.cut ' ' nums with
+       (match Lib.String.cut ' ' nums with
         | None -> invalid_arg "couldn't find space in count"
         | Some (mine, theirs) -> Some (to_start_len mine, to_start_len theirs))
     | _ -> invalid_arg "broken line!"
@@ -146,7 +144,7 @@ let sort_into_bags ~counter:(mine_len, their_len) dir mine their m_nl t_nl str =
     None
   else if str_len = 0 then
     both "" (* NOTE: this should technically be a parse error but GNU patch accepts that and some patches in opam-repository do use this behaviour *)
-  else match String.get str 0, String.slice ~start:1 str with
+  else match String.get str 0, Lib.String.slice ~start:1 str with
     | ' ', data ->
         both data
     | '\t', data ->
@@ -300,7 +298,7 @@ let strip_prefix ~p filename =
   if p = 0 then
     filename
   else
-    match String.cuts '/' filename with
+    match Lib.String.cuts '/' filename with
     | [] -> assert false
     | x::xs ->
         (* Per GNU patch's spec: A sequence of one or more adjacent slashes is counted as a single slash. *)
@@ -317,8 +315,8 @@ let strip_prefix ~p filename =
         | l -> String.concat "/" l
 
 let operation_of_strings ~p mine their =
-  let mine_fn = String.slice ~start:4 mine
-  and their_fn = String.slice ~start:4 their in
+  let mine_fn = Lib.String.slice ~start:4 mine
+  and their_fn = Lib.String.slice ~start:4 their in
   match Fname.parse mine_fn, Fname.parse their_fn with
   | Ok None, Ok (Some b) -> Create (strip_prefix ~p b)
   | Ok (Some a), Ok None -> Delete (strip_prefix ~p a)
@@ -338,26 +336,26 @@ let parse_one ~p data =
   (* first locate --- and +++ lines *)
   let rec find_start ~mode ~git_action = function
     | [] -> git_action, []
-    | x::xs when String.is_prefix ~prefix:"diff --git " x ->
-        let git_filename = Fname.parse_git_header (String.slice ~start:11 x) in
+    | x::xs when Lib.String.is_prefix ~prefix:"diff --git " x ->
+        let git_filename = Fname.parse_git_header (Lib.String.slice ~start:11 x) in
         begin match mode, git_action with
         | (None | Some (Git _)), None -> find_start ~mode:(Some (Git git_filename)) ~git_action:None xs
         | None, Some _ -> assert false (* impossible state *)
         | Some (Git _), Some git_action -> (Some git_action, x :: xs)
         end
-    | x::y::xs when is_git mode && String.is_prefix ~prefix:"rename from " x && String.is_prefix ~prefix:"rename to " y ->
-      let git_action = Some (Rename_only (String.slice ~start:12 x, String.slice ~start:10 y)) in
+    | x::y::xs when is_git mode && Lib.String.is_prefix ~prefix:"rename from " x && Lib.String.is_prefix ~prefix:"rename to " y ->
+      let git_action = Some (Rename_only (Lib.String.slice ~start:12 x, Lib.String.slice ~start:10 y)) in
       find_start ~mode ~git_action xs
-    | x::xs when is_git mode && String.is_prefix ~prefix:"deleted file mode " x ->
+    | x::xs when is_git mode && Lib.String.is_prefix ~prefix:"deleted file mode " x ->
         let git_action = match mode with
           | Some (Git (Some git_filename)) -> Some (Delete git_filename)
           | Some (Git None) -> git_action
           | None -> assert false
         in
         find_start ~mode ~git_action xs
-    | x::y::xs when String.is_prefix ~prefix:"--- " x && String.is_prefix ~prefix:"+++ " y ->
+    | x::y::xs when Lib.String.is_prefix ~prefix:"--- " x && Lib.String.is_prefix ~prefix:"+++ " y ->
       Some (operation_of_strings ~p x y), xs
-    | x::y::_xs when String.is_prefix ~prefix:"*** " x && String.is_prefix ~prefix:"--- " y ->
+    | x::y::_xs when Lib.String.is_prefix ~prefix:"*** " x && Lib.String.is_prefix ~prefix:"--- " y ->
       failwith "Context diffs are not supported"
     | _::xs -> find_start ~mode ~git_action xs
   in
@@ -371,7 +369,7 @@ let parse_one ~p data =
   | None, [] -> None
   | None, _ -> assert false
 
-let to_lines = String.cuts '\n'
+let to_lines = Lib.String.cuts '\n'
 
 let parse ~p data =
   let lines = to_lines data in
