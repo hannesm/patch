@@ -1,4 +1,4 @@
-module String = Patch_lib.String
+module String = Lib.String
 
 type hunk = {
   mine_start : int ;
