@@ -38,14 +38,11 @@ module String = struct
     in
     let len = stop - start in
     String.sub str start len
+end
 
-  let trim = String.trim
-
-  let get = String.get
-
-  let concat = String.concat
-
-  let length = String.length
-
-  let equal = String.equal
+module List = struct
+  let rec last = function
+    | [] -> invalid_arg "List.last"
+    | [x] -> x
+    | _::xs -> last xs
 end

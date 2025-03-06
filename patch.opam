@@ -8,7 +8,7 @@ bug-reports: "https://github.com/hannesm/patch/issues"
 license: "ISC"
 
 depends: [
-  "ocaml" {>= "4.04.2"}
+  "ocaml" {>= "4.08"}
   "dune" {>= "3.0"}
   "alcotest" {with-test & >= "0.7.0"}
   "crowbar" {with-test}

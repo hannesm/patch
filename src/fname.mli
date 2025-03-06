@@ -3,3 +3,5 @@ val parse : string -> (string option, string) result
     is equivalent to [/dev/null].
 
     Returns [Error msg] in case of error. *)
+
+val parse_git_header : string -> string option

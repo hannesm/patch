@@ -1,5 +1,3 @@
-module String = Patch_lib.String
-
 type hunk = {
   mine_start : int ;
   mine_len : int ;
@@ -26,58 +24,106 @@ let unified_diff ~mine_no_nl ~their_no_nl hunk =
                       (if their_no_nl then no_nl_str else []))
 
 let pp_hunk ~mine_no_nl ~their_no_nl ppf hunk =
-  Format.fprintf ppf "@@@@ -%d,%d +%d,%d @@@@\n%s"
+  Format.fprintf ppf "%@%@ -%d,%d +%d,%d %@%@\n%s\n"
     hunk.mine_start hunk.mine_len hunk.their_start hunk.their_len
     (unified_diff ~mine_no_nl ~their_no_nl hunk)
 
-let take data num =
-  let rec take0 num data acc =
-    match num, data with
-    | 0, _ -> List.rev acc
-    | n, x::xs -> take0 (pred n) xs (x :: acc)
-    | _ -> invalid_arg "take0 broken"
+let list_cut idx l =
+  let rec aux acc idx = function
+    | l when idx = 0 -> (List.rev acc, l)
+    | [] -> invalid_arg "list_cut"
+    | x::xs -> aux (x :: acc) (idx - 1) xs
   in
-  take0 num data []
+  aux [] idx l
 
-let drop data num =
-  let rec drop data num =
-    match num, data with
-    | 0, _ -> data
-    | n, _::xs -> drop xs (pred n)
-    | _ -> invalid_arg "drop broken"
+let rec apply_hunk ~cleanly ~fuzz (last_matched_line, offset, lines) ({mine_start; mine_len; mine; their_start = _; their_len; their} as hunk) =
+  let mine_start = mine_start + offset in
+  let patch_match ~search_offset =
+    let mine_start = mine_start + search_offset in
+    let prefix, rest = list_cut (Stdlib.max 0 (mine_start - 1)) lines in
+    let actual_mine, suffix = list_cut mine_len rest in
+    if actual_mine <> (mine : string list) then
+      invalid_arg "unequal mine";
+    (* TODO: should we check their_len against List.length their? *)
+    (mine_start + mine_len, offset + (their_len - mine_len), prefix @ their @ suffix)
   in
-  try drop data num with
-  | Invalid_argument _ -> invalid_arg ("drop " ^ string_of_int num ^ " on " ^ string_of_int (List.length data))
-
-(* TODO verify that it applies cleanly *)
-let apply_hunk old (index, to_build) hunk =
-  try
-    let prefix = take (drop old index) (hunk.mine_start - index) in
-    (hunk.mine_start + hunk.mine_len, to_build @ prefix @ hunk.their)
-  with
-  | Invalid_argument _ -> invalid_arg ("apply_hunk " ^ string_of_int index ^ " old len " ^ string_of_int (List.length old) ^
-                                       " hunk start " ^ string_of_int hunk.mine_start ^ " hunk len " ^ string_of_int hunk.mine_len)
+  try patch_match ~search_offset:0
+  with Invalid_argument _ ->
+    if cleanly then
+      invalid_arg "apply_hunk"
+    else
+      let max_pos_offset = Stdlib.max 0 (List.length lines - Stdlib.max 0 (mine_start - 1) - mine_len) in
+      let max_neg_offset = mine_start - last_matched_line in
+      let rec locate search_offset =
+        let aux search_offset max_offset =
+          try
+            if search_offset <= max_offset then
+              Some (patch_match ~search_offset)
+            else
+              None
+          with Invalid_argument _ -> None
+        in
+        if search_offset > max_pos_offset && search_offset > max_neg_offset then
+          if fuzz < 3 && List.length mine >= 2 && List.length their >= 2 then
+            let hunk =
+              if List.hd hunk.mine = (List.hd hunk.their : string) then
+                {
+                  mine_start = hunk.mine_start + 1;
+                  mine_len = hunk.mine_len - 1;
+                  mine = List.tl hunk.mine;
+                  their_start = hunk.their_start + 1;
+                  their_len = hunk.their_len - 1;
+                  their = List.tl hunk.their;
+                }
+              else
+                hunk
+            in
+            let hunk =
+              if Lib.List.last hunk.mine = (Lib.List.last hunk.their : string) then
+                {
+                  mine_start = hunk.mine_start;
+                  mine_len = hunk.mine_len - 1;
+                  mine = List.rev (List.tl (List.rev hunk.mine));
+                  their_start = hunk.their_start;
+                  their_len = hunk.their_len - 1;
+                  their = List.rev (List.tl (List.rev hunk.their));
+                }
+              else
+                hunk
+            in
+            if hunk.mine_len = 0 && hunk.their_len = 0 then
+              invalid_arg "apply_hunk: equal hunks... why?!"
+            else if mine_len = (hunk.mine_len : int) && their_len = (hunk.their_len : int) then
+              invalid_arg "apply_hunk: could not apply fuzz"
+            else
+              apply_hunk ~cleanly ~fuzz:(fuzz + 1) (last_matched_line, offset, lines) hunk
+          else
+            invalid_arg "apply_hunk"
+        else
+          match aux search_offset max_pos_offset with
+          | Some x -> x
+          | None ->
+              match aux (-search_offset) max_neg_offset with
+              | Some x -> x
+              | None -> locate (search_offset + 1)
+      in
+      locate 1
 
 let to_start_len data =
   (* input being "?19,23" *)
-  match String.cut ',' (String.slice ~start:1 data) with
-  | None when data = "+1" || data = "-1" -> (0, 1)
+  match Lib.String.cut ',' (Lib.String.slice ~start:1 data) with
+  | None when data = "+1" || data = "-1" -> (1, 1)
   | None -> invalid_arg ("start_len broken in " ^ data)
-  | Some (start, len) ->
-     let len = int_of_string len
-     and start = int_of_string start
-     in
-     let st = if len = 0 || start = 0 then start else pred start in
-     (st, len)
+  | Some (start, len) -> (int_of_string start, int_of_string len)
 
 let count_to_sl_sl data =
-  if String.is_prefix ~prefix:"@@" data then
+  if Lib.String.is_prefix ~prefix:"@@ -" data then
     (* input: "@@ -19,23 +19,12 @@ bla" *)
     (* output: ((19,23), (19, 12)) *)
-    match List.filter (function "" -> false | _ -> true) (String.cuts '@' data) with
+    match List.filter (function "" -> false | _ -> true) (Lib.String.cuts '@' data) with
     | numbers::_ ->
        let nums = String.trim numbers in
-       (match String.cut ' ' nums with
+       (match Lib.String.cut ' ' nums with
         | None -> invalid_arg "couldn't find space in count"
         | Some (mine, theirs) -> Some (to_start_len mine, to_start_len theirs))
     | _ -> invalid_arg "broken line!"
@@ -85,18 +131,24 @@ let count_to_sl_sl data =
     None
 
 let sort_into_bags ~counter:(mine_len, their_len) dir mine their m_nl t_nl str =
-  if String.length str = 0 then
-    failwith "invalid patch (empty line)"
-  else if mine_len = 0 && their_len = 0 && String.get str 0 <> '\\' then
+  let both data =
+    if m_nl || t_nl then
+      failwith "\"no newline at the end of file\" is not at the end of the file";
+    if mine_len = 0 || their_len = 0 then
+      failwith "invalid patch (both size exhausted)";
+    let counter = (mine_len - 1, their_len - 1) in
+    Some (counter, `Both, (data :: mine), (data :: their), m_nl, t_nl)
+  in
+  let str_len = String.length str in
+  if mine_len = 0 && their_len = 0 && (str_len = 0 || str.[0] <> '\\') then
     None
-  else match String.get str 0, String.slice ~start:1 str with
+  else if str_len = 0 then
+    both "" (* NOTE: this should technically be a parse error but GNU patch accepts that and some patches in opam-repository do use this behaviour *)
+  else match String.get str 0, Lib.String.slice ~start:1 str with
     | ' ', data ->
-        if m_nl || t_nl then
-          failwith "\"no newline at the end of file\" is not at the end of the file";
-        if mine_len = 0 || their_len = 0 then
-          failwith "invalid patch (both size exhausted)";
-        let counter = (mine_len - 1, their_len - 1) in
-        Some (counter, `Both, (data :: mine), (data :: their), m_nl, t_nl)
+        both data
+    | '\t', data ->
+        both ("\t"^data) (* NOTE: not valid but accepted by GNU patch *)
     | '+', data ->
         if t_nl then
           failwith "\"no newline at the end of file\" is not at the end of the file";
@@ -132,7 +184,11 @@ let to_hunk count data mine_no_nl their_no_nl =
   | Some ((mine_start, mine_len), (their_start, their_len)) ->
     let counter = (mine_len, their_len) in
     let rec step ~counter dir mine their mine_no_nl their_no_nl = function
-      | [] | [""] -> (List.rev mine, List.rev their, mine_no_nl, their_no_nl, [])
+      | [] | [""] when counter = (0, 0) -> (List.rev mine, List.rev their, mine_no_nl, their_no_nl, [])
+      | [""] when counter = (1, 1) -> (List.rev ("" :: mine), List.rev ("" :: their), mine_no_nl, their_no_nl, []) (* GNU patch behaviour *)
+      | [""] when counter = (2, 2) -> (List.rev ("" :: "" :: mine), List.rev ("" :: "" :: their), mine_no_nl, their_no_nl, []) (* GNU patch behaviour *)
+      | [""] when counter = (3, 3) -> (List.rev ("" :: "" :: "" :: mine), List.rev ("" :: "" :: "" :: their), mine_no_nl, their_no_nl, []) (* GNU patch behaviour *)
+      | [] | [""] -> failwith "bad file"
       | x::xs -> match sort_into_bags ~counter dir mine their mine_no_nl their_no_nl x with
         | Some (counter, dir, mine, their, mine_no_nl', their_no_nl') -> step ~counter dir mine their mine_no_nl' their_no_nl' xs
         | None -> (List.rev mine, List.rev their, mine_no_nl, their_no_nl, x :: xs)
@@ -157,7 +213,7 @@ let operation_eq a b = match a, b with
   | Create a, Create b -> String.equal a b
   | Edit (a, a'), Edit (b, b')
   | Rename_only (a, a'), Rename_only (b, b') -> String.equal a b && String.equal a' b'
-  | _ -> false
+  | Delete _, _ | Create _, _ | Edit _, _ | Rename_only _, _ -> false
 
 let no_file = "/dev/null"
 
@@ -213,6 +269,7 @@ let pp_operation ppf op =
     Format.fprintf ppf "--- %a\n" pp_filename no_file ;
     Format.fprintf ppf "+++ %a\n" pp_filename name
   | Rename_only (old_name, new_name) ->
+    Format.fprintf ppf "diff --git %a %a" pp_filename old_name pp_filename new_name;
     Format.fprintf ppf "rename from %a\n" pp_filename old_name;
     Format.fprintf ppf "rename to %a\n" pp_filename new_name
 
@@ -241,16 +298,25 @@ let strip_prefix ~p filename =
   if p = 0 then
     filename
   else
-    match String.cuts '/' filename with
+    match Lib.String.cuts '/' filename with
     | [] -> assert false
     | x::xs ->
         (* Per GNU patch's spec: A sequence of one or more adjacent slashes is counted as a single slash. *)
-        let filename = x :: List.filter (function "" -> false | _ -> true) xs in
-        String.concat "/" (drop filename p)
+        let filename' = x :: List.filter (function "" -> false | _ -> true) xs in
+        let rec drop_up_to n = function
+          | [] -> assert false
+          | l when n = 0 -> l
+          | [_] -> failwith "wrong prefix"
+          | _::xs -> drop_up_to (n - 1) xs
+        in
+        (* GNU patch just drops the max number of slashes when the filename doesn't have enough slashes to satisfy -p *)
+        match drop_up_to p filename' with
+        | [] -> assert false
+        | l -> String.concat "/" l
 
 let operation_of_strings ~p mine their =
-  let mine_fn = String.slice ~start:4 mine
-  and their_fn = String.slice ~start:4 their in
+  let mine_fn = Lib.String.slice ~start:4 mine
+  and their_fn = Lib.String.slice ~start:4 their in
   match Fname.parse mine_fn, Fname.parse their_fn with
   | Ok None, Ok (Some b) -> Create (strip_prefix ~p b)
   | Ok (Some a), Ok None -> Delete (strip_prefix ~p a)
@@ -260,17 +326,40 @@ let operation_of_strings ~p mine their =
   | _, Error msg -> raise (Parse_error {msg; lines = [their]})
 
 let parse_one ~p data =
-  (* first locate --- and +++ lines *)
-  let rec find_start ?hdr = function
-    | [] -> hdr, []
-    | x::y::xs when String.is_prefix ~prefix:"rename from " x && String.is_prefix ~prefix:"rename to " y ->
-      let hdr = Rename_only (String.slice ~start:12 x, String.slice ~start:10 y) in
-      find_start ~hdr xs
-    | x::y::xs when String.is_prefix ~prefix:"--- " x ->
-      Some (operation_of_strings ~p x y), xs
-    | _::xs -> find_start ?hdr xs
+  let open (struct
+    type mode = Git of string option
+  end) in
+  let is_git = function
+    | Some (Git _) -> true
+    | None -> false
   in
-  match find_start data with
+  (* first locate --- and +++ lines *)
+  let rec find_start ~mode ~git_action = function
+    | [] -> git_action, []
+    | x::xs when Lib.String.is_prefix ~prefix:"diff --git " x ->
+        let git_filename = Fname.parse_git_header (Lib.String.slice ~start:11 x) in
+        begin match mode, git_action with
+        | (None | Some (Git _)), None -> find_start ~mode:(Some (Git git_filename)) ~git_action:None xs
+        | None, Some _ -> assert false (* impossible state *)
+        | Some (Git _), Some git_action -> (Some git_action, x :: xs)
+        end
+    | x::y::xs when is_git mode && Lib.String.is_prefix ~prefix:"rename from " x && Lib.String.is_prefix ~prefix:"rename to " y ->
+      let git_action = Some (Rename_only (Lib.String.slice ~start:12 x, Lib.String.slice ~start:10 y)) in
+      find_start ~mode ~git_action xs
+    | x::xs when is_git mode && Lib.String.is_prefix ~prefix:"deleted file mode " x ->
+        let git_action = match mode with
+          | Some (Git (Some git_filename)) -> Some (Delete git_filename)
+          | Some (Git None) -> git_action
+          | None -> assert false
+        in
+        find_start ~mode ~git_action xs
+    | x::y::xs when Lib.String.is_prefix ~prefix:"--- " x && Lib.String.is_prefix ~prefix:"+++ " y ->
+      Some (operation_of_strings ~p x y), xs
+    | x::y::_xs when Lib.String.is_prefix ~prefix:"*** " x && Lib.String.is_prefix ~prefix:"--- " y ->
+      failwith "Context diffs are not supported"
+    | _::xs -> find_start ~mode ~git_action xs
+  in
+  match find_start ~mode:None ~git_action:None data with
   | Some (Rename_only _ as operation), rest ->
     let hunks = [] and mine_no_nl = false and their_no_nl = false in
     Some ({ operation ; hunks ; mine_no_nl ; their_no_nl }, rest)
@@ -280,7 +369,7 @@ let parse_one ~p data =
   | None, [] -> None
   | None, _ -> assert false
 
-let to_lines = String.cuts '\n'
+let to_lines = Lib.String.cuts '\n'
 
 let parse ~p data =
   let lines = to_lines data in
@@ -292,7 +381,7 @@ let parse ~p data =
   in
   doit ~p [] lines
 
-let patch filedata diff =
+let patch ~cleanly filedata diff =
   match diff.operation with
   | Rename_only _ -> filedata
   | Delete _ -> None
@@ -304,15 +393,14 @@ let patch filedata diff =
         Some (String.concat "\n" lines)
       | _ -> assert false
     end
-  | _ ->
+  | Edit _ ->
     let old = match filedata with None -> [] | Some x -> to_lines x in
-    let idx, lines = List.fold_left (apply_hunk old) (0, []) diff.hunks in
-    let lines = lines @ drop old idx in
+    let _, _, lines = List.fold_left (apply_hunk ~cleanly ~fuzz:0) (0, 0, old) diff.hunks in
     let lines =
       match diff.mine_no_nl, diff.their_no_nl with
       | false, true -> (match List.rev lines with ""::tl -> List.rev tl | _ -> lines)
       | true, false -> lines @ [ "" ]
-      | false, false when filedata = None -> lines @ [ "" ]
+      | false, false when filedata = None -> lines @ [ "" ] (* TODO: i'm not sure about this *)
       | false, false -> lines
       | true, true -> lines
     in
@@ -369,8 +457,8 @@ let diff_op operation a b =
           l1 l2
   in
   aux
-    ~mine_start:0 ~mine_len:0 ~mine:[]
-    ~their_start:0 ~their_len:0 ~their:[]
+    ~mine_start:(if a = "" then 0 else 1) ~mine_len:0 ~mine:[]
+    ~their_start:(if b = "" then 0 else 1) ~their_len:0 ~their:[]
     (to_lines a) (to_lines b)
 
 let diff operation a b = match a, b with
