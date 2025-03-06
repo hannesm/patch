@@ -1,3 +1,22 @@
+## v3.0.0-alpha1 (2025-03-06)
+
+* Ensure compatibility with GNU Patch as much as possible:
+  * Fix the parsing of filenames coming from GNU or git diffs (#20 @kit-ty-kate @Leonidas-from-XIV)
+  * Detect file creation/deletion when parsing patch files created with `diff -N` (#20 @kit-ty-kate)
+  * Add a `~p` parameter to `Patch.parse` mimicking the behaviour of `patch -p<num>` (#9 @kit-ty-kate @hannesm)
+  * Allow empty lines to be equivalent to a simple newline in both mine/their (#22 @kit-ty-kate)
+  * Allow the tab character to be used in place of ` \t` (#22 @kit-ty-kate)
+  * `Patch.apply`: allow unclean application using the default GNU Patch algorithm (#22 @kit-ty-kate)
+  * Allow up to 3 assumed-empty lines missing at the end of each hunk (#22 @kit-ty-kate)
+  * Handle git extensions only when in presence of a git header (#22 @kit-ty-kate)
+  * Add support for the empty file deletion git extension (#22 @kit-ty-kate)
+  * Add support for spaces instead of tabs between filename and date (#22 @kit-ty-kate)
+  * Start the diff start index from 1 (0 if empty) (#22 @kit-ty-kate)
+* Quote special characters from filename when pretty-printing them (#21 @kit-ty-kate)
+* Refuse context diffs and only accept unified diffs (#22 @kit-ty-kate)
+* `Patch.pp_hunk`: Add missing final end of line character (#22 @kit-ty-kate)
+* `Patch.pp_operation`: Print the git header when using a git extension (#22 @kit-ty-kate)
+
 ## v2.0.0 (2024-04-03)
 
 * Add support for git format-patch headers (#7 @kit-ty-kate)
