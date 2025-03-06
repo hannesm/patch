@@ -1,7 +1,10 @@
 opam-version: "2.0"
 version: "3.0.0~alpha1"
 maintainer: "Hannes Mehnert <hannes@mehnert.org>"
-authors: ["Hannes Mehnert <hannes@mehnert.org>"]
+authors: [
+  "Hannes Mehnert <hannes@mehnert.org>"
+  "Kate <kit-ty-kate@outlook.com>"
+]
 homepage: "https://github.com/hannesm/patch"
 doc: "https://hannesm.github.io/patch/"
 dev-repo: "git+https://github.com/hannesm/patch.git"
