@@ -369,7 +369,7 @@ let parse_one ~p data =
   | None, [] -> None
   | None, _ -> assert false
 
-let to_lines = Lib.String.cuts '\n'
+let to_lines = String.split_on_char '\n'
 
 let parse ~p data =
   let lines = to_lines data in
