@@ -124,7 +124,7 @@ let count_to_sl_sl data =
   if Lib.String.is_prefix ~prefix:"@@ -" data then
     (* input: "@@ -19,23 +19,12 @@ bla" *)
     (* output: ((19,23), (19, 12)) *)
-    match List.filter (function "" -> false | _ -> true) (Lib.String.cuts '@' data) with
+    match List.filter (function "" -> false | _ -> true) (String.split_on_char '@' data) with
     | numbers::_ ->
        let nums = String.trim numbers in
        (match Lib.String.cut ' ' nums with
@@ -330,7 +330,7 @@ let strip_prefix ~p filename =
   if p = 0 then
     filename
   else
-    match Lib.String.cuts '/' filename with
+    match String.split_on_char '/' filename with
     | [] -> assert false
     | x::xs ->
         (* Per GNU patch's spec: A sequence of one or more adjacent slashes is counted as a single slash. *)
