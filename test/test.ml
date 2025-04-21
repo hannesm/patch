@@ -402,10 +402,18 @@ let data = "data/"
 
 let read file =
   let filename = data ^ file in
-  let size = Unix.(stat filename).st_size in
+  let size = (Unix.stat filename).st_size in
   let buf = Bytes.create size in
   let fd = Unix.openfile filename [ Unix.O_RDONLY ] 0 in
-  let res = Unix.read fd buf 0 size in
+  let res =
+    let rec loop i = function
+      | 0 -> i
+      | size ->
+          let nread = Unix.read fd buf i size in
+          loop (i + nread) (size - nread)
+    in
+    loop 0 size
+  in
   assert (res = size) ;
   Unix.close fd ;
   Bytes.unsafe_to_string buf
@@ -466,6 +474,7 @@ let regression_diffs =
   in
   let files = collect_dir data in
   let tests = List.fold_left (fun acc file -> S.add (drop_ext file) acc) S.empty files in
+  let tests = S.remove "2025-01-before-archiving-phase1_999bff3ed88d26f76ff7eaddbfa7af49ed4737dc" tests in
   List.map (fun test -> "regression " ^ test, `Quick, regression_test test) (S.elements tests)
 
 let diff_tests_mine_unavailable_gen ~their_no_nl =
@@ -1043,6 +1052,21 @@ let pp_filenames = [
   "with special characters", `Quick, filename_with_special_chars;
 ]
 
+let big_file = read "./2025-01-before-archiving-phase1_999bff3ed88d26f76ff7eaddbfa7af49ed4737dc.diff"
+let expected = read "./2025-01-before-archiving-phase1_999bff3ed88d26f76ff7eaddbfa7af49ed4737dc.expected"
+let parse_big () =
+  let patch = Patch.parse ~p:1 big_file in
+  Alcotest.(check int) __LOC__ 13_915 (List.length patch)
+let print_big () =
+  let patch = Patch.parse ~p:0 big_file in
+  let actual = Format.asprintf "%a" Patch.pp_list patch in
+  Alcotest.(check string) __LOC__ expected actual
+
+let big_diff = [
+  "parse", `Quick, parse_big;
+  "print", `Quick, print_big;
+]
+
 let tests = [
   "parse", parse_diffs ;
   "apply", apply_diffs ;
@@ -1054,6 +1078,7 @@ let tests = [
   "diff", unified_diff_creation ;
   "patch -p", patch_p;
   "pretty-print filenames", pp_filenames;
+  "big diff", big_diff;
 ]
 
 let () =
