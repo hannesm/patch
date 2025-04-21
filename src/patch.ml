@@ -476,7 +476,10 @@ let patch ~cleanly filedata diff =
       | _ -> assert false
     end
   | Edit _ ->
-    let old = match filedata with None -> [] | Some x -> to_lines x in
+    let old = match filedata with
+      | None -> invalid_arg "no input file given on edition operation"
+      | Some x -> to_lines x
+    in
     let _, _, lines = List.fold_left (apply_hunk ~cleanly ~fuzz:0) (0, 0, old) diff.hunks in
     let lines = String.concat "\n" lines in
     let lines =
