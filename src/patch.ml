@@ -269,7 +269,7 @@ let pp_operation ppf op =
     Format.fprintf ppf "--- %a\n" pp_filename no_file ;
     Format.fprintf ppf "+++ %a\n" pp_filename name
   | Rename_only (old_name, new_name) ->
-    Format.fprintf ppf "diff --git %a %a" pp_filename old_name pp_filename new_name;
+    Format.fprintf ppf "diff --git %a %a\n" pp_filename old_name pp_filename new_name;
     Format.fprintf ppf "rename from %a\n" pp_filename old_name;
     Format.fprintf ppf "rename to %a\n" pp_filename new_name
 
