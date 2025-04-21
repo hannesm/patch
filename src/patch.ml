@@ -474,23 +474,28 @@ let patch ~cleanly filedata diff =
   | Create _ ->
     begin match diff.hunks with
       | [ the_hunk ] ->
-        let d = the_hunk.their in
-        let lines = if diff.their_no_nl then d else d @ [""] in
-        Some (String.concat "\n" lines)
+        let lines = String.concat "\n" the_hunk.their in
+        let lines = if diff.their_no_nl then lines else lines ^ "\n" in
+        Some lines
       | _ -> assert false
     end
   | Edit _ ->
     let old = match filedata with None -> [] | Some x -> to_lines x in
     let _, _, lines = List.fold_left (apply_hunk ~cleanly ~fuzz:0) (0, 0, old) diff.hunks in
+    let lines = String.concat "\n" lines in
     let lines =
       match diff.mine_no_nl, diff.their_no_nl with
-      | false, true -> (match List.rev lines with ""::tl -> List.rev tl | _ -> lines)
-      | true, false -> lines @ [ "" ]
-      | false, false when filedata = None -> lines @ [ "" ] (* TODO: i'm not sure about this *)
+      | false, true ->
+          let len = String.length lines in
+          if len > 0 && String.unsafe_get lines (len - 1) = '\n' then
+            Lib.String.slice ~stop:(len - 1) lines
+          else
+            lines
+      | true, false -> lines ^ "\n"
       | false, false -> lines
       | true, true -> lines
     in
-    Some (String.concat "\n" lines)
+    Some lines
 
 let diff_op operation a b =
   let rec aux ~mine_start ~mine_len ~mine ~their_start ~their_len ~their l1 l2 =
