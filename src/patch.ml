@@ -479,7 +479,10 @@ let patch ~cleanly filedata diff =
       | _ -> assert false
     end
   | Edit _ ->
-    let old = match filedata with None -> Rope.empty | Some x -> Rope.of_string x in
+    let old = match filedata with
+      | None -> invalid_arg "no input file given on edition operation"
+      | Some x -> Rope.of_string x
+    in
     let _, _, rope = List.fold_left (apply_hunk ~cleanly ~fuzz:0) (0, 0, old) diff.hunks in
     let lines = Rope.to_string rope in
     let lines =
