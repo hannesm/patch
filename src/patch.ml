@@ -258,7 +258,7 @@ let pp_filename ppf fn =
   if aux ~to_quote:false buf fn ~len 0 then
     Format.fprintf ppf "\"%s\"" (Buffer.contents buf)
   else
-    Format.pp_print_text ppf fn
+    Format.pp_print_string ppf fn
 
 let pp_operation ppf op =
   match op with
