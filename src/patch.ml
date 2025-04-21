@@ -112,21 +112,23 @@ let rec apply_hunk ~cleanly ~fuzz (last_matched_line, offset, lines) ({mine_star
 
 let to_start_len data =
   (* input being "?19,23" *)
-  match Lib.String.cut ',' (Lib.String.slice ~start:1 data) with
-  | None when data = "+1" || data = "-1" -> (1, 1)
-  | None -> invalid_arg ("start_len broken in " ^ data)
-  | Some (start, len) -> (int_of_string start, int_of_string len)
+  if data = "+1" || data = "-1" then
+    (1, 1)
+  else
+    match Lib.String.cut ',' data with
+    | None -> invalid_arg ("start_len broken in " ^ data)
+    | Some (start, len) -> (Int.abs (int_of_string start), Int.abs (int_of_string len))
 
 let count_to_sl_sl data =
   if Lib.String.is_prefix ~prefix:"@@ -" data then
     (* input: "@@ -19,23 +19,12 @@ bla" *)
     (* output: ((19,23), (19, 12)) *)
-    match List.filter (function "" -> false | _ -> true) (String.split_on_char '@' data) with
-    | numbers::_ ->
+    match String.split_on_char '@' data with
+    | ""::""::numbers::_ ->
        let nums = String.trim numbers in
        (match Lib.String.cut ' ' nums with
         | None -> invalid_arg "couldn't find space in count"
-        | Some (mine, theirs) -> Some (to_start_len mine, to_start_len theirs))
+        | Some (mine, theirs) -> Some (to_start_len mine, to_start_len (String.trim theirs)))
     | _ -> invalid_arg "broken line!"
   else
     None
