@@ -4,4 +4,15 @@ val parse : string -> (string option, string) result
 
     Returns [Error msg] in case of error. *)
 
-val parse_git_header : string -> string option
+(** {1 Git header parsers} *)
+
+val parse_git_header_rename :
+  from_:string -> to_:string -> string -> (string * string) option
+(** [parse_git_header_rename ~from_ ~to_ str] will parse [str] by trying to
+    match [from_] and [to_] on the left side and right side of the space split
+    respectively. Returns [None] if nothing was able to be found. *)
+
+val parse_git_header_same : string -> (string * string) option
+(** [parse_git_header_same str] will parse [str] by trying to get the largest
+    equal suffix for both filenames in the git header. Returns [None] if
+    nothing was able to be found. *)

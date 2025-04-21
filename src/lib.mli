@@ -4,6 +4,7 @@ module String : sig
   val cut : char -> string -> (string * string) option
   val cuts : char -> string -> string list
   val slice : ?start:int -> ?stop:int -> string -> string
+  val count_common_suffix : string -> string -> int
 end
 
 module List : sig

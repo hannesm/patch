@@ -434,7 +434,8 @@ let parse_real_diff_headers =
     [ "first", Patch.Edit ("first.old", "first.new") ;
       "create1", Patch.Create "a/create1" ;
       "git1", Patch.Create "b/git1.new" ;
-      "git2", Patch.Rename_only ("git2.old", "git2.new") ;
+      "git2", Patch.Git_ext ("a/git2.old", "b/git2.new",
+                             Patch.Rename_only ("git2.old", "git2.new")) ;
       "git3", Patch.Edit ("a/git3.old", "b/git3.new") ;
       "git4", Patch.Delete "a/git4.old"
     ]

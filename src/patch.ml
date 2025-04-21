@@ -202,18 +202,36 @@ let rec to_hunks (mine_no_nl, their_no_nl, acc) = function
     | None, mine_no_nl, their_no_nl, rest -> List.rev acc, mine_no_nl, their_no_nl, rest
     | Some hunk, mine_no_nl, their_no_nl, rest -> to_hunks (mine_no_nl, their_no_nl, hunk :: acc) rest
 
+type git_ext =
+  | Rename_only of string * string
+  | Delete_only
+  | Create_only
+
 type operation =
   | Edit of string * string
   | Delete of string
   | Create of string
-  | Rename_only of string * string
+  | Git_ext of (string * string * git_ext)
+
+let git_ext_eq a b = match a, b with
+  | Delete_only, Delete_only
+  | Create_only, Create_only
+    -> true
+  | Rename_only (a, b), Rename_only (a', b')
+    -> String.equal a a' && String.equal b b'
+  | Rename_only _, _ | Delete_only, _ | Create_only, _
+    -> false
 
 let operation_eq a b = match a, b with
   | Delete a, Delete b
-  | Create a, Create b -> String.equal a b
-  | Edit (a, a'), Edit (b, b')
-  | Rename_only (a, a'), Rename_only (b, b') -> String.equal a b && String.equal a' b'
-  | Delete _, _ | Create _, _ | Edit _, _ | Rename_only _, _ -> false
+  | Create a, Create b
+    -> String.equal a b
+  | Edit (a, b), Edit (a', b')
+    -> String.equal a a' && String.equal b b'
+  | Git_ext (a, b, ext1), Git_ext (a', b', ext2)
+    -> String.equal a a' && String.equal b b' && git_ext_eq ext1 ext2
+  | Edit _, _ | Delete _, _ | Create _, _ | Git_ext _, _
+    -> false
 
 let no_file = "/dev/null"
 
@@ -257,8 +275,7 @@ let pp_filename ppf fn =
   else
     Format.pp_print_text ppf fn
 
-let pp_operation ppf op =
-  match op with
+let pp_operation ppf = function
   | Edit (old_name, new_name) ->
     Format.fprintf ppf "--- %a\n" pp_filename old_name ;
     Format.fprintf ppf "+++ %a\n" pp_filename new_name
@@ -268,10 +285,16 @@ let pp_operation ppf op =
   | Create name ->
     Format.fprintf ppf "--- %a\n" pp_filename no_file ;
     Format.fprintf ppf "+++ %a\n" pp_filename name
-  | Rename_only (old_name, new_name) ->
-    Format.fprintf ppf "diff --git %a %a\n" pp_filename old_name pp_filename new_name;
-    Format.fprintf ppf "rename from %a\n" pp_filename old_name;
-    Format.fprintf ppf "rename to %a\n" pp_filename new_name
+  | Git_ext (a, b, ext) ->
+      Format.fprintf ppf "diff --git %a %a\n" pp_filename a pp_filename b;
+      match ext with
+      | Rename_only (from_, to_) ->
+          Format.fprintf ppf "rename from %a\n" pp_filename from_;
+          Format.fprintf ppf "rename to %a\n" pp_filename to_
+      | Delete_only ->
+          Format.pp_print_string ppf "deleted file mode 100644\n";
+      | Create_only ->
+          Format.pp_print_string ppf "new file mode 100644\n";
 
 type t = {
   operation : operation ;
@@ -283,7 +306,12 @@ type t = {
 let pp ppf {operation; hunks; mine_no_nl; their_no_nl} =
   pp_operation ppf operation;
   let rec aux = function
-    | [] -> ()
+    | [] ->
+        begin match operation with
+        | Edit _ | Delete _ | Create _ ->
+            assert false
+        | Git_ext _ -> () (* already delt with in pp_operation *)
+        end
     | [x] -> pp_hunk ~mine_no_nl ~their_no_nl ppf x
     | x::xs ->
         pp_hunk ~mine_no_nl:false ~their_no_nl:false ppf x;
@@ -327,7 +355,7 @@ let operation_of_strings ~p mine their =
 
 let parse_one ~p data =
   let open (struct
-    type mode = Git of string option
+    type mode = Git of string
   end) in
   let is_git = function
     | Some (Git _) -> true
@@ -335,32 +363,75 @@ let parse_one ~p data =
   in
   (* first locate --- and +++ lines *)
   let rec find_start ~mode ~git_action = function
-    | [] -> git_action, []
+    | [] ->
+        begin match git_action with
+        | Some git_action -> Some (Git_ext git_action), []
+        | None -> None, []
+        end
     | x::xs when Lib.String.is_prefix ~prefix:"diff --git " x ->
-        let git_filename = Fname.parse_git_header (Lib.String.slice ~start:11 x) in
         begin match mode, git_action with
-        | (None | Some (Git _)), None -> find_start ~mode:(Some (Git git_filename)) ~git_action:None xs
+        | (None | Some (Git _)), None -> find_start ~mode:(Some (Git x)) ~git_action:None xs
         | None, Some _ -> assert false (* impossible state *)
-        | Some (Git _), Some git_action -> (Some git_action, x :: xs)
+        | Some (Git _), Some git_action -> (Some (Git_ext git_action), x :: xs)
         end
     | x::y::xs when is_git mode && Lib.String.is_prefix ~prefix:"rename from " x && Lib.String.is_prefix ~prefix:"rename to " y ->
-      let git_action = Some (Rename_only (Lib.String.slice ~start:12 x, Lib.String.slice ~start:10 y)) in
-      find_start ~mode ~git_action xs
+        let git_action = match mode with
+          | None -> assert false
+          | Some (Git git_filenames) ->
+              let from_ = Lib.String.slice ~start:12 x in
+              let to_ = Lib.String.slice ~start:10 y in
+              let git_filenames = Lib.String.slice ~start:11 git_filenames in
+              match Fname.parse_git_header_rename ~from_ ~to_ git_filenames with
+              | None -> git_action
+              | Some (a, b) ->
+                  let a = strip_prefix ~p a in
+                  let b = strip_prefix ~p b in
+                  Some (a, b, Rename_only (from_, to_))
+        in
+        find_start ~mode ~git_action xs
     | x::xs when is_git mode && Lib.String.is_prefix ~prefix:"deleted file mode " x ->
         let git_action = match mode with
-          | Some (Git (Some git_filename)) -> Some (Delete git_filename)
-          | Some (Git None) -> git_action
           | None -> assert false
+          | Some (Git git_filenames) ->
+              let git_filenames = Lib.String.slice ~start:11 git_filenames in
+              match Fname.parse_git_header_same git_filenames with
+              | None -> git_action
+              | Some (a, b) ->
+                  let a = strip_prefix ~p a in
+                  let b = strip_prefix ~p b in
+                  Some (a, b, Delete_only)
+        in
+        find_start ~mode ~git_action xs
+    | x::xs when is_git mode && Lib.String.is_prefix ~prefix:"new file mode " x ->
+        let git_action = match mode with
+          | None -> assert false
+          | Some (Git git_filenames) ->
+              let git_filenames = Lib.String.slice ~start:11 git_filenames in
+              match Fname.parse_git_header_same git_filenames with
+              | None -> git_action
+              | Some (a, b) ->
+                  let a = strip_prefix ~p a in
+                  let b = strip_prefix ~p b in
+                  Some (a, b, Create_only)
         in
         find_start ~mode ~git_action xs
     | x::y::xs when Lib.String.is_prefix ~prefix:"--- " x && Lib.String.is_prefix ~prefix:"+++ " y ->
-      Some (operation_of_strings ~p x y), xs
+        begin match git_action, operation_of_strings ~p x y with
+        | None, op -> Some op, xs
+        | Some (f, _, Delete_only), (Delete f' as op)
+        | Some (_, f, Create_only), (Create f' as op)
+          when String.equal f f' -> Some op, xs
+        | Some (a, b, Rename_only (_, _)), (Edit (a', b') as op)
+          when String.equal a a' && String.equal b b' -> Some op, xs
+        | Some (_, _, (Rename_only _ | Delete_only | Create_only) as git_op), _
+          -> Some (Git_ext git_op), x :: y :: xs
+        end
     | x::y::_xs when Lib.String.is_prefix ~prefix:"*** " x && Lib.String.is_prefix ~prefix:"--- " y ->
       failwith "Context diffs are not supported"
     | _::xs -> find_start ~mode ~git_action xs
   in
   match find_start ~mode:None ~git_action:None data with
-  | Some (Rename_only _ as operation), rest ->
+  | Some (Git_ext _ as operation), rest ->
     let hunks = [] and mine_no_nl = false and their_no_nl = false in
     Some ({ operation ; hunks ; mine_no_nl ; their_no_nl }, rest)
   | Some operation, rest ->
@@ -383,7 +454,14 @@ let parse ~p data =
 
 let patch ~cleanly filedata diff =
   match diff.operation with
-  | Rename_only _ -> filedata
+  | Git_ext (_, _, ext) ->
+      if diff.hunks <> [] then
+        assert false;
+      begin match ext with
+      | Rename_only _ -> filedata
+      | Delete_only -> None
+      | Create_only -> Some ""
+      end
   | Delete _ -> None
   | Create _ ->
     begin match diff.hunks with
@@ -463,6 +541,9 @@ let diff_op operation a b =
 
 let diff operation a b = match a, b with
   | None, None -> invalid_arg "no input given"
+  | None, Some ""
+  | Some "", None ->
+      Some {operation; hunks = []; mine_no_nl = true; their_no_nl = true}
   | None, Some b -> diff_op operation "" b
   | Some a, None -> diff_op operation a ""
   | Some a, Some b when String.equal a b -> None (* NOTE: Optimization *)
