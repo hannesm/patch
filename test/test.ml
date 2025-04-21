@@ -402,10 +402,18 @@ let data = "data/"
 
 let read file =
   let filename = data ^ file in
-  let size = Unix.(stat filename).st_size in
+  let size = (Unix.stat filename).st_size in
   let buf = Bytes.create size in
   let fd = Unix.openfile filename [ Unix.O_RDONLY ] 0 in
-  let res = Unix.read fd buf 0 size in
+  let res =
+    let rec loop i = function
+      | 0 -> i
+      | size ->
+          let nread = Unix.read fd buf i size in
+          loop (i + nread) (size - nread)
+    in
+    loop 0 size
+  in
   assert (res = size) ;
   Unix.close fd ;
   Bytes.unsafe_to_string buf
@@ -457,7 +465,8 @@ let regression_diffs =
     let next () = try Some (readdir dh) with End_of_file -> None in
     let rec doone acc = function
       | Some "." | Some ".." -> doone acc (next ())
-      | Some s -> doone (s :: acc) (next ())
+      | Some s when not (Sys.is_directory (Filename.concat dir s)) -> doone (s :: acc) (next ())
+      | Some _ -> doone acc (next ())
       | None -> acc
     in
     let res = doone [] (next ()) in
@@ -1043,6 +1052,32 @@ let pp_filenames = [
   "with special characters", `Quick, filename_with_special_chars;
 ]
 
+let big_file = lazy (opt_read "./external/2025-01-before-archiving-phase1_999bff3ed88d26f76ff7eaddbfa7af49ed4737dc.diff")
+let expected = lazy (opt_read "./external/2025-01-before-archiving-phase1_999bff3ed88d26f76ff7eaddbfa7af49ed4737dc.expected")
+let support_string_length_above_20MB = Sys.max_string_length > 20_000_000
+let parse_big () =
+  if support_string_length_above_20MB then
+    match Lazy.force big_file with
+    | Some big_file ->
+        let patch = Patch.parse ~p:1 big_file in
+        Alcotest.(check int) __LOC__ 13_915 (List.length patch)
+    | None -> Alcotest.skip ()
+  else Alcotest.skip ()
+let print_big () =
+  if support_string_length_above_20MB then
+    match Lazy.force big_file, Lazy.force expected with
+    | Some big_file, Some expected ->
+        let patch = Patch.parse ~p:0 big_file in
+        let actual = Format.asprintf "%a" Patch.pp_list patch in
+        Alcotest.(check string) __LOC__ expected actual
+    | None, _ | _, None -> Alcotest.skip ()
+  else Alcotest.skip ()
+
+let big_diff = [
+  "parse", `Quick, parse_big;
+  "print", `Quick, print_big;
+]
+
 let tests = [
   "parse", parse_diffs ;
   "apply", apply_diffs ;
@@ -1054,6 +1089,7 @@ let tests = [
   "diff", unified_diff_creation ;
   "patch -p", patch_p;
   "pretty-print filenames", pp_filenames;
+  "big diff", big_diff;
 ]
 
 let () =
