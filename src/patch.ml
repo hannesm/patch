@@ -36,24 +36,17 @@ let pp_hunk ~mine_no_nl ~their_no_nl ppf hunk =
     hunk.mine_start hunk.mine_len hunk.their_start hunk.their_len
     (unified_diff ~mine_no_nl ~their_no_nl hunk)
 
-let list_cut idx l =
-  let rec aux acc idx = function
-    | l when idx = 0 -> (List.rev acc, l)
-    | [] -> invalid_arg "list_cut"
-    | x::xs -> aux (x :: acc) (idx - 1) xs
-  in
-  aux [] idx l
-
 let rec apply_hunk ~cleanly ~fuzz (last_matched_line, offset, lines) ({mine_start; mine_len; mine; their_start = _; their_len; their} as hunk) =
   let mine_start = mine_start + offset in
   let patch_match ~search_offset =
     let mine_start = mine_start + search_offset in
-    let prefix, rest = list_cut (Stdlib.max 0 (mine_start - 1)) lines in
-    let actual_mine, suffix = list_cut mine_len rest in
+    let rev_prefix, rest = Lib.List.rev_cut (Stdlib.max 0 (mine_start - 1)) lines in
+    let rev_actual_mine, suffix = Lib.List.rev_cut mine_len rest in
+    let actual_mine = List.rev rev_actual_mine in
     if actual_mine <> (mine : string list) then
       invalid_arg "unequal mine";
     (* TODO: should we check their_len against List.length their? *)
-    (mine_start + mine_len, offset + (their_len - mine_len), prefix @ their @ suffix)
+    (mine_start + mine_len, offset + (their_len - mine_len), List.rev_append rev_prefix (their @ suffix))
   in
   try patch_match ~search_offset:0
   with Invalid_argument _ ->
