@@ -146,11 +146,11 @@ let sort_into_bags ~counter:(mine_len, their_len) dir mine their m_nl t_nl str =
     Some (counter, `Both, (data :: mine), (data :: their), m_nl, t_nl)
   in
   let str_len = String.length str in
-  if mine_len = 0 && their_len = 0 && (str_len = 0 || str.[0] <> '\\') then
+  if mine_len = 0 && their_len = 0 && (str_len = 0 || String.unsafe_get str 0 <> '\\') then
     None
   else if str_len = 0 then
     both "" (* NOTE: this should technically be a parse error but GNU patch accepts that and some patches in opam-repository do use this behaviour *)
-  else match String.get str 0, Lib.String.slice ~start:1 str with
+  else match String.unsafe_get str 0, Lib.String.slice ~start:1 str with
     | ' ', data ->
         both data
     | '\t', data ->
@@ -245,30 +245,30 @@ let pp_filename ppf fn =
   (* NOTE: filename quote format from GNU diffutils *)
   let rec aux ~to_quote buf fn ~len i =
     if i < len then
-      let c = fn.[i] in
       let to_quote =
-        if c = '\007' then
-          (Buffer.add_string buf "\\a"; true)
-        else if c = '\b' then
-          (Buffer.add_string buf "\\b"; true)
-        else if c = '\t' then
-          (Buffer.add_string buf "\\t"; true)
-        else if c = '\n' then
-          (Buffer.add_string buf "\\n"; true)
-        else if c = '\011' then
-          (Buffer.add_string buf "\\v"; true)
-        else if c = '\012' then
-          (Buffer.add_string buf "\\f"; true)
-        else if c = '\r' then
-          (Buffer.add_string buf "\\r"; true)
-        else if c < ' ' || c > '~' then
-          (Printf.bprintf buf "\\%03o" (Char.code c); true)
-        else if c = ' ' then
-          (Buffer.add_char buf ' '; true)
-        else if c = '"' || c = '\\' then
-          (Buffer.add_char buf '\\'; Buffer.add_char buf c; true)
-        else
-          (Buffer.add_char buf c; to_quote)
+        match String.unsafe_get fn i with
+        | '\007' ->
+            Buffer.add_string buf "\\a"; true
+        | '\b' ->
+            Buffer.add_string buf "\\b"; true
+        | '\t' ->
+            Buffer.add_string buf "\\t"; true
+        | '\n' ->
+            Buffer.add_string buf "\\n"; true
+        | '\011' ->
+            Buffer.add_string buf "\\v"; true
+        | '\012' ->
+            Buffer.add_string buf "\\f"; true
+        | '\r' ->
+            Buffer.add_string buf "\\r"; true
+        | ' ' ->
+            Buffer.add_char buf ' '; true
+        | ('"' | '\\') as c ->
+            Buffer.add_char buf '\\'; Buffer.add_char buf c; true
+        | c when c < ' ' || c > '~' ->
+            Printf.bprintf buf "\\%03o" (Char.code c); true
+        | c ->
+            Buffer.add_char buf c; to_quote
       in
       aux ~to_quote buf fn ~len (i + 1)
     else
