@@ -62,10 +62,3 @@ module String = struct
     let len_y = String.length y in
     loop ~x ~y 0 (len_x - 1) (len_y - 1)
 end
-
-module List = struct
-  let rec last = function
-    | [] -> invalid_arg "List.last"
-    | [x] -> x
-    | _::xs -> last xs
-end
