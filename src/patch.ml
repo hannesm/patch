@@ -394,13 +394,15 @@ let patch ~cleanly filedata diff =
       | _ -> assert false
     end
   | Edit _ ->
-    let old = match filedata with None -> [] | Some x -> to_lines x in
+    let old = match filedata with
+      | None -> invalid_arg "no input file given on edition operation"
+      | Some x -> to_lines x
+    in
     let _, _, lines = List.fold_left (apply_hunk ~cleanly ~fuzz:0) (0, 0, old) diff.hunks in
     let lines =
       match diff.mine_no_nl, diff.their_no_nl with
       | false, true -> (match List.rev lines with ""::tl -> List.rev tl | _ -> lines)
       | true, false -> lines @ [ "" ]
-      | false, false when filedata = None -> lines @ [ "" ] (* TODO: i'm not sure about this *)
       | false, false -> lines
       | true, true -> lines
     in
