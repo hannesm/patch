@@ -9,4 +9,5 @@ end
 
 module List : sig
   val last : 'a list -> 'a
+  val rev_cut : int -> 'a list -> 'a list * 'a list
 end
