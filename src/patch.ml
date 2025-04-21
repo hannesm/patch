@@ -15,18 +15,24 @@ type parse_error = {
 
 exception Parse_error of parse_error
 
-let unified_diff ~mine_no_nl ~their_no_nl hunk =
-  let no_nl_str = ["\\ No newline at end of file"] in
-  (* TODO *)
-  String.concat "\n" (List.map (fun line -> "-" ^ line) hunk.mine @
-                      (if mine_no_nl then no_nl_str else []) @
-                      List.map (fun line -> "+" ^ line) hunk.their @
-                      (if their_no_nl then no_nl_str else []))
+let unified_diff ~mine_no_nl ~their_no_nl ppf hunk =
+  let print_no_nl ppf =
+    Format.pp_print_string ppf "\\ No newline at end of file\n"
+  in
+  let print_line ppf c line =
+    Format.pp_print_char ppf c;
+    Format.pp_print_string ppf line;
+    Format.pp_print_char ppf '\n';
+  in
+  List.iter (print_line ppf '-') hunk.mine;
+  if mine_no_nl then print_no_nl ppf;
+  List.iter (print_line ppf '+') hunk.their;
+  if their_no_nl then print_no_nl ppf
 
 let pp_hunk ~mine_no_nl ~their_no_nl ppf hunk =
-  Format.fprintf ppf "%@%@ -%d,%d +%d,%d %@%@\n%s\n"
+  Format.fprintf ppf "%@%@ -%d,%d +%d,%d %@%@\n%a"
     hunk.mine_start hunk.mine_len hunk.their_start hunk.their_len
-    (unified_diff ~mine_no_nl ~their_no_nl hunk)
+    (unified_diff ~mine_no_nl ~their_no_nl) hunk
 
 let list_cut idx l =
   let rec aux acc idx = function
