@@ -463,6 +463,9 @@ let diff_op operation a b =
 
 let diff operation a b = match a, b with
   | None, None -> invalid_arg "no input given"
+  | None, Some ""
+  | Some "", None ->
+      Some {operation; hunks = []; mine_no_nl = true; their_no_nl = true}
   | None, Some b -> diff_op operation "" b
   | Some a, None -> diff_op operation a ""
   | Some a, Some b when String.equal a b -> None (* NOTE: Optimization *)
