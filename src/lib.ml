@@ -54,11 +54,6 @@ module String = struct
 end
 
 module List = struct
-  let rec last = function
-    | [] -> invalid_arg "List.last"
-    | [x] -> x
-    | _::xs -> last xs
-
   let rev_cut idx l =
     let rec aux acc idx = function
       | l when idx = 0 -> (acc, l)
