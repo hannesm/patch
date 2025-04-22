@@ -1061,10 +1061,15 @@ let print_big () =
   let patch = Patch.parse ~p:0 big_file in
   let actual = Format.asprintf "%a" Patch.pp_list patch in
   Alcotest.(check string) __LOC__ expected actual
+let parse_own () =
+  let patch = Patch.parse ~p:0 expected in
+  let actual = Format.asprintf "%a" Patch.pp_list patch in
+  Alcotest.(check string) __LOC__ expected actual
 
 let big_diff = [
   "parse", `Quick, parse_big;
   "print", `Quick, print_big;
+  "parse own", `Quick, parse_own;
 ]
 
 let tests = [
