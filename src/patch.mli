@@ -63,7 +63,9 @@ val parse : p:int -> string -> t list
 
 val patch : cleanly:bool -> string option -> t -> string option
 (** [patch file_contents diff] applies [diff] on [file_contents], resulting in
-    the new file contents (or None if deleted). *)
+    the new file contents (or None if deleted).
+
+    @raise Invalid_argument if file_contents is [None] but [diff.operation = Edit _] *)
 
 val diff : operation -> string option -> string option -> t option
 (** [diff operation content_a content_b] creates a diff between
