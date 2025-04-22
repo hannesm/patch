@@ -100,21 +100,25 @@ let parse s =
 let parse_git_header s =
   let parse s =
     match parse_filename ~allow_space:true s with
-    | Ok (s, "") -> Ok (Lib.String.cut '/' s)
+    | Ok (s, "") ->
+        begin match String.index_opt s '/' with
+        | Some i -> Ok (Lib.String.slice ~start:(i + 1) s)
+        | None -> Error "Slash not found"
+        end
     | Ok _ -> Error "Unexpected character after closing double-quote in header"
     | Error _ as err -> err
   in
   let rec loop s len i =
-    if i < len then
+    if i < (len : int) then
       match s.[i] with
       | ' ' | '\t' ->
-          let a = parse (Lib.String.slice ~stop:i s) in
-          let b = parse (Lib.String.slice ~start:(i + 1) s) in
-          begin match a, b with
-          | Ok (Some ("a", a)), Ok (Some ("b", b))
-            when a = (b : string) ->
-              Some a
-          | _, _ -> loop s len (i + 1)
+          begin match parse (Lib.String.slice ~stop:i s) with
+          | Ok a ->
+              begin match parse (Lib.String.slice ~start:(i + 1) s) with
+              | Ok b when a = (b : string) -> Some a
+              | _ -> loop s len (i + 1)
+              end
+          | Error _ -> loop s len (i + 1)
           end
       | _ -> loop s len (i + 1)
     else
