@@ -1072,10 +1072,20 @@ let print_big () =
         Alcotest.(check string) __LOC__ expected actual
     | None, _ | _, None -> Alcotest.skip ()
   else Alcotest.skip ()
+let parse_own () =
+  if support_string_length_above_20MB then
+    match Lazy.force expected with
+    | Some expected ->
+        let patch = Patch.parse ~p:0 expected in
+        let actual = Format.asprintf "%a" Patch.pp_list patch in
+        Alcotest.(check string) __LOC__ expected actual
+    | None -> Alcotest.skip ()
+  else Alcotest.skip ()
 
 let big_diff = [
   "parse", `Quick, parse_big;
   "print", `Quick, print_big;
+  "parse own", `Quick, parse_own;
 ]
 
 let tests = [
