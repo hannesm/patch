@@ -83,3 +83,11 @@ a "copy from / to" header, which I was unable to spot in the wild.
 ## Documentation
 
 The API documentation can be browsed [online](https://hannesm.github.io/patch/).
+
+## Testsuite
+
+The testsuite can be ran with a simple `dune test`, however note that to also
+test larger files, you must first make sure that the submodule is up-to-date:
+```
+git submodule update --init
+```

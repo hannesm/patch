@@ -269,7 +269,7 @@ let pp_operation ppf op =
     Format.fprintf ppf "--- %a\n" pp_filename no_file ;
     Format.fprintf ppf "+++ %a\n" pp_filename name
   | Rename_only (old_name, new_name) ->
-    Format.fprintf ppf "diff --git %a %a" pp_filename old_name pp_filename new_name;
+    Format.fprintf ppf "diff --git %a %a\n" pp_filename old_name pp_filename new_name;
     Format.fprintf ppf "rename from %a\n" pp_filename old_name;
     Format.fprintf ppf "rename to %a\n" pp_filename new_name
 
@@ -369,7 +369,7 @@ let parse_one ~p data =
   | None, [] -> None
   | None, _ -> assert false
 
-let to_lines = Lib.String.cuts '\n'
+let to_lines = String.split_on_char '\n'
 
 let parse ~p data =
   let lines = to_lines data in
