@@ -487,7 +487,7 @@ ccc
 ddd
 eee|}^(if their_no_nl then "" else "\n")
   in
-  let diff = Patch.diff (Create "b") a (Some b) in
+  let diff = Patch.diff a (Some ("b", b)) in
   let hunk =
     { Patch.operation = Create "b";
       hunks = [ { mine_start = 0; mine_len = 0; mine = [];
@@ -510,7 +510,7 @@ ddd
 eee|}^(if mine_no_nl then "" else "\n")
   and b = None
   in
-  let diff = Patch.diff (Delete "a") (Some a) b in
+  let diff = Patch.diff (Some ("a", a)) b in
   let hunk =
     { Patch.operation = Delete "a";
       hunks = [ { mine_start = 1; mine_len = 5; mine = ["aaa"; "bbb"; "ccc"; "ddd"; "eee"];
@@ -527,7 +527,7 @@ let diff_tests_their_unavailable_none_no_nl, diff_tests_hunk_their_unavailable_n
 let diff_tests_empty_gen ~mine_no_nl ~their_no_nl =
   let a = if mine_no_nl then "" else "\n"
   and b = if their_no_nl then "" else "\n" in
-  let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
+  let diff = Patch.diff (Some ("a", a)) (Some ("b", b)) in
   let hunk =
     if (mine_no_nl && their_no_nl) || (not mine_no_nl && not their_no_nl) then
       None
@@ -564,7 +564,7 @@ ccc
 ddd
 eee|}^(if their_no_nl then "" else "\n")
   in
-  let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
+  let diff = Patch.diff (Some ("a", a)) (Some ("b", b)) in
   let hunk =
     if (mine_no_nl && their_no_nl) || (not mine_no_nl && not their_no_nl) then
       None
@@ -599,7 +599,7 @@ test1
 test2
 eee|}^(if their_no_nl then "" else "\n")
   in
-  let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
+  let diff = Patch.diff (Some ("a", a)) (Some ("b", b)) in
   let hunk =
     { Patch.operation = Edit ("a", "b");
       hunks = [ { mine_start = 3; mine_len = 3; mine = ["ccc"; "ddd"; "eee"];
@@ -630,7 +630,7 @@ bbb
 test1
 eee|}^(if their_no_nl then "" else "\n")
   in
-  let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
+  let diff = Patch.diff (Some ("a", a)) (Some ("b", b)) in
   let hunk =
     { Patch.operation = Edit ("a", "b");
       hunks = [ { mine_start = 3; mine_len = 3; mine = ["ccc"; "ddd"; "eee"];
@@ -662,7 +662,7 @@ ccc
 ddd
 eee|}^(if their_no_nl then "" else "\n")
   in
-  let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
+  let diff = Patch.diff (Some ("a", a)) (Some ("b", b)) in
   let hunk =
     { Patch.operation = Edit ("a", "b");
       hunks = [ { mine_start = 1; mine_len = 5; mine = ["aaa"; "bbb"; "ccc"; "ddd"; "eee"];
@@ -693,7 +693,7 @@ ccc
 ddd
 eee|}^(if their_no_nl then "" else "\n")
   in
-  let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
+  let diff = Patch.diff (Some ("a", a)) (Some ("b", b)) in
   let hunk =
     { Patch.operation = Edit ("a", "b");
       hunks = [ { mine_start = 1; mine_len = 5; mine = ["aaa"; "bbb"; "ccc"; "ddd"; "eee"];
@@ -725,7 +725,7 @@ ccc
 ddd
 test1|}^(if their_no_nl then "" else "\n")
   in
-  let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
+  let diff = Patch.diff (Some ("a", a)) (Some ("b", b)) in
   let hunk =
     { Patch.operation = Edit ("a", "b");
       hunks = [ { mine_start = 5; mine_len = 1; mine = ["eee"];
@@ -756,7 +756,7 @@ bbb
 ccc
 test1|}^(if their_no_nl then "" else "\n")
   in
-  let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
+  let diff = Patch.diff (Some ("a", a)) (Some ("b", b)) in
   let hunk =
     { Patch.operation = Edit ("a", "b");
       hunks = [ { mine_start = 4; mine_len = 2; mine = ["ddd"; "eee"];

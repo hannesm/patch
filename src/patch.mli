@@ -85,8 +85,8 @@ val patch : cleanly:bool -> string option -> t -> string option
 (** [patch file_contents diff] applies [diff] on [file_contents], resulting in
     the new file contents (or None if deleted). *)
 
-val diff : operation -> string option -> string option -> t option
-(** [diff operation content_a content_b] creates a diff between
+val diff : (string * string) option -> (string * string) option -> t option
+(** [diff (filename_a, content_a) (filename_b, content_b)] creates a diff between
     [content_a] and [content_b]. Returns [None] if no changes could be detected.
 
-    @raise Invalid_argument if both [content_a] and [content_b] are [None]. *)
+    @raise Invalid_argument if both arguments are [None]. *)

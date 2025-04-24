@@ -539,12 +539,15 @@ let diff_op operation a b =
     ~their_start:(if b = "" then 0 else 1) ~their_len:0 ~their:[]
     (to_lines a) (to_lines b)
 
-let diff operation a b = match a, b with
+let diff a b = match a, b with
   | None, None -> invalid_arg "no input given"
-  | None, Some ""
-  | Some "", None ->
-      Some {operation; hunks = []; mine_no_nl = true; their_no_nl = true}
-  | None, Some b -> diff_op operation "" b
-  | Some a, None -> diff_op operation a ""
-  | Some a, Some b when String.equal a b -> None (* NOTE: Optimization *)
-  | Some a, Some b -> diff_op operation a b
+  | None, Some (filename_b, "") ->
+      Some { operation = Git_ext (filename_b, filename_b, Create_only);
+             hunks = []; mine_no_nl = true; their_no_nl = true; }
+  | Some (filename_a, ""), None ->
+      Some { operation = Git_ext (filename_a, filename_a, Delete_only);
+             hunks = []; mine_no_nl = true; their_no_nl = true; }
+  | None, Some (filename_b, b) -> diff_op (Create filename_b) "" b
+  | Some (filename_a, a), None -> diff_op (Delete filename_a) a ""
+  | Some (_, a), Some (_, b) when String.equal a b -> None (* NOTE: Optimization *)
+  | Some (filename_a, a), Some (filename_b, b) -> diff_op (Edit (filename_a, filename_b)) a b
