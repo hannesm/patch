@@ -19,11 +19,18 @@ read -r NEW_OPAM
 echo
 echo '## Getting the list of packages with patches'
 echo
+rm -f pkgs-with-patches
 
 rm -rf ./opam-repository
-git clone -b 2025-01-before-archiving-phase1 --depth=1 https://github.com/ocaml/opam-repository.git
+git clone --depth=1 https://github.com/ocaml/opam-repository.git
 pushd ./opam-repository/packages > /dev/null
-grep -l '^patches:' */*/opam | cut -d/ -f2 > ../../pkgs-with-patches
+grep -l '^patches:' */*/opam | cut -d/ -f2 >> ../../pkgs-with-patches
+popd > /dev/null
+
+rm -rf ./opam-repository-archive
+git clone --depth=1 https://github.com/ocaml/opam-repository-archive.git
+pushd ./opam-repository-archive/packages > /dev/null
+grep -l '^patches:' */*/opam | cut -d/ -f2 >> ../../pkgs-with-patches
 popd > /dev/null
 
 NB_OF_PKGS=$(cat ./pkgs-with-patches | wc -l)
@@ -44,6 +51,7 @@ rm -rf ./tmp ./old
 mkdir ./tmp
 pushd ./tmp > /dev/null
 "${OLD_OPAM}" init --bare --no-setup --no-opamrc ../opam-repository
+"${OLD_OPAM}" repository add --set-default archive ../opam-repository-archive
 cat ../pkgs-with-patches | time -p xargs -n1 "${OLD_OPAM}" source > ../old.log 2>&1 || true
 rm_faulty_pkg_artefacts
 rm -rf "${OPAMROOT}"
@@ -58,6 +66,7 @@ rm -rf ./tmp ./new
 mkdir ./tmp
 pushd ./tmp > /dev/null
 "${NEW_OPAM}" init --bare --no-setup --no-opamrc ../opam-repository
+"${NEW_OPAM}" repository add --set-default archive ../opam-repository-archive
 cat ../pkgs-with-patches | time -p xargs -n1 "${NEW_OPAM}" source > ../new.log 2>&1 || true
 rm_faulty_pkg_artefacts
 rm -rf "${OPAMROOT}"
