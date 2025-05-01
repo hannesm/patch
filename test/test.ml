@@ -834,8 +834,8 @@ let unified_diff_spaces =
 let git_diff_spaces = {|\
 diff --git a/foo bar b/foo bar
 index ef00db3..88adca3 100644
---- a/foo bar	
-+++ b/foo bar	
+--- a/foo bar|}^"\t"^{|
++++ b/foo bar|}^"\t"^{|
 @@ -1 +1 @@
 -This is wrong.
 +This is right.
