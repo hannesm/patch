@@ -434,7 +434,8 @@ let parse_real_diff_headers =
     [ "first", Patch.Edit ("first.old", "first.new") ;
       "create1", Patch.Create "a/create1" ;
       "git1", Patch.Create "b/git1.new" ;
-      "git2", Patch.Rename_only ("git2.old", "git2.new") ;
+      "git2", Patch.Git_ext ("a/git2.old", "b/git2.new",
+                             Patch.Rename_only ("git2.old", "git2.new")) ;
       "git3", Patch.Edit ("a/git3.old", "b/git3.new") ;
       "git4", Patch.Delete "a/git4.old"
     ]
@@ -486,7 +487,7 @@ ccc
 ddd
 eee|}^(if their_no_nl then "" else "\n")
   in
-  let diff = Patch.diff (Create "b") a (Some b) in
+  let diff = Patch.diff a (Some ("b", b)) in
   let hunk =
     { Patch.operation = Create "b";
       hunks = [ { mine_start = 0; mine_len = 0; mine = [];
@@ -509,7 +510,7 @@ ddd
 eee|}^(if mine_no_nl then "" else "\n")
   and b = None
   in
-  let diff = Patch.diff (Delete "a") (Some a) b in
+  let diff = Patch.diff (Some ("a", a)) b in
   let hunk =
     { Patch.operation = Delete "a";
       hunks = [ { mine_start = 1; mine_len = 5; mine = ["aaa"; "bbb"; "ccc"; "ddd"; "eee"];
@@ -526,7 +527,7 @@ let diff_tests_their_unavailable_none_no_nl, diff_tests_hunk_their_unavailable_n
 let diff_tests_empty_gen ~mine_no_nl ~their_no_nl =
   let a = if mine_no_nl then "" else "\n"
   and b = if their_no_nl then "" else "\n" in
-  let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
+  let diff = Patch.diff (Some ("a", a)) (Some ("b", b)) in
   let hunk =
     if (mine_no_nl && their_no_nl) || (not mine_no_nl && not their_no_nl) then
       None
@@ -563,7 +564,7 @@ ccc
 ddd
 eee|}^(if their_no_nl then "" else "\n")
   in
-  let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
+  let diff = Patch.diff (Some ("a", a)) (Some ("b", b)) in
   let hunk =
     if (mine_no_nl && their_no_nl) || (not mine_no_nl && not their_no_nl) then
       None
@@ -598,7 +599,7 @@ test1
 test2
 eee|}^(if their_no_nl then "" else "\n")
   in
-  let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
+  let diff = Patch.diff (Some ("a", a)) (Some ("b", b)) in
   let hunk =
     { Patch.operation = Edit ("a", "b");
       hunks = [ { mine_start = 3; mine_len = 3; mine = ["ccc"; "ddd"; "eee"];
@@ -629,7 +630,7 @@ bbb
 test1
 eee|}^(if their_no_nl then "" else "\n")
   in
-  let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
+  let diff = Patch.diff (Some ("a", a)) (Some ("b", b)) in
   let hunk =
     { Patch.operation = Edit ("a", "b");
       hunks = [ { mine_start = 3; mine_len = 3; mine = ["ccc"; "ddd"; "eee"];
@@ -661,7 +662,7 @@ ccc
 ddd
 eee|}^(if their_no_nl then "" else "\n")
   in
-  let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
+  let diff = Patch.diff (Some ("a", a)) (Some ("b", b)) in
   let hunk =
     { Patch.operation = Edit ("a", "b");
       hunks = [ { mine_start = 1; mine_len = 5; mine = ["aaa"; "bbb"; "ccc"; "ddd"; "eee"];
@@ -692,7 +693,7 @@ ccc
 ddd
 eee|}^(if their_no_nl then "" else "\n")
   in
-  let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
+  let diff = Patch.diff (Some ("a", a)) (Some ("b", b)) in
   let hunk =
     { Patch.operation = Edit ("a", "b");
       hunks = [ { mine_start = 1; mine_len = 5; mine = ["aaa"; "bbb"; "ccc"; "ddd"; "eee"];
@@ -724,7 +725,7 @@ ccc
 ddd
 test1|}^(if their_no_nl then "" else "\n")
   in
-  let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
+  let diff = Patch.diff (Some ("a", a)) (Some ("b", b)) in
   let hunk =
     { Patch.operation = Edit ("a", "b");
       hunks = [ { mine_start = 5; mine_len = 1; mine = ["eee"];
@@ -755,7 +756,7 @@ bbb
 ccc
 test1|}^(if their_no_nl then "" else "\n")
   in
-  let diff = Patch.diff (Edit ("a", "b")) (Some a) (Some b) in
+  let diff = Patch.diff (Some ("a", a)) (Some ("b", b)) in
   let hunk =
     { Patch.operation = Edit ("a", "b");
       hunks = [ { mine_start = 4; mine_len = 2; mine = ["ddd"; "eee"];
@@ -833,8 +834,8 @@ let unified_diff_spaces =
 let git_diff_spaces = {|\
 diff --git a/foo bar b/foo bar
 index ef00db3..88adca3 100644
---- a/foo bar	
-+++ b/foo bar	
+--- a/foo bar|}^"\t"^{|
++++ b/foo bar|}^"\t"^{|
 @@ -1 +1 @@
 -This is wrong.
 +This is right.
@@ -1072,10 +1073,20 @@ let print_big () =
         Alcotest.(check string) __LOC__ expected actual
     | None, _ | _, None -> Alcotest.skip ()
   else Alcotest.skip ()
+let parse_own () =
+  if support_string_length_above_20MB then
+    match Lazy.force expected with
+    | Some expected ->
+        let patch = Patch.parse ~p:0 expected in
+        let actual = Format.asprintf "%a" Patch.pp_list patch in
+        Alcotest.(check string) __LOC__ expected actual
+    | None -> Alcotest.skip ()
+  else Alcotest.skip ()
 
 let big_diff = [
   "parse", `Quick, parse_big;
   "print", `Quick, print_big;
+  "parse own", `Quick, parse_own;
 ]
 
 let tests = [

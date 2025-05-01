@@ -97,27 +97,54 @@ let parse s =
         Ok (Some filename)
   | Error _ as err -> err
 
-let parse_git_header s =
-  let parse s =
-    match parse_filename ~allow_space:true s with
-    | Ok (s, "") -> Ok (Lib.String.cut '/' s)
-    | Ok _ -> Error "Unexpected character after closing double-quote in header"
-    | Error _ as err -> err
-  in
-  let rec loop s len i =
-    if i < len then
-      match s.[i] with
+let parse_git_filename s =
+  match parse_filename ~allow_space:true s with
+  | Ok (s, "") -> Ok s
+  | Ok _ -> Error "Unexpected character after closing double-quote in header"
+  | Error _ as err -> err
+
+let parse_git_header_rename ~from_ ~to_ s =
+  let rec loop ~s ~len i =
+    if i < (len : int) then
+      match String.unsafe_get s i with
       | ' ' | '\t' ->
-          let a = parse (Lib.String.slice ~stop:i s) in
-          let b = parse (Lib.String.slice ~start:(i + 1) s) in
+          let a = parse_git_filename (Lib.String.slice ~stop:i s) in
+          let b = parse_git_filename (Lib.String.slice ~start:(i + 1) s) in
           begin match a, b with
-          | Ok (Some ("a", a)), Ok (Some ("b", b))
-            when a = (b : string) ->
-              Some a
-          | _, _ -> loop s len (i + 1)
+          | Ok a, Ok b
+            when Lib.String.is_suffix ~suffix:from_ a &&
+                 Lib.String.is_suffix ~suffix:to_ b
+            -> Some (a, b)
+          | Ok _, Ok _ | Error _, _ | _, Error _
+            -> loop ~s ~len (i + 1)
           end
-      | _ -> loop s len (i + 1)
+      | _ -> loop ~s ~len (i + 1)
     else
       None
   in
-  loop s (String.length s) 0
+  loop ~s ~len:(String.length s) 0
+
+let parse_git_header_same s =
+  let rec loop ~best ~s ~len i =
+    if i < (len : int) then
+      match String.unsafe_get s i with
+      | ' ' | '\t' ->
+          let a = parse_git_filename (Lib.String.slice ~stop:i s) in
+          let b = parse_git_filename (Lib.String.slice ~start:(i + 1) s) in
+          begin match a, b with
+          | Ok a, Ok b ->
+              begin match best, Lib.String.count_common_suffix a b with
+              | None, best -> loop ~best:(Some (best, a, b)) ~s ~len (i + 1)
+              | Some (prev_best, _, _), best when best > (prev_best : int) ->
+                  loop ~best:(Some (best, a, b)) ~s ~len (i + 1)
+              | Some _ as best, _ -> loop ~best ~s ~len (i + 1)
+              end
+          | Error _, _ | _, Error _ -> loop ~best ~s ~len (i + 1)
+          end
+      | _ -> loop ~best ~s ~len (i + 1)
+    else
+      match best with
+      | None -> None
+      | Some (_best, a, b) -> Some (a, b)
+  in
+  loop ~best:None ~s ~len:(String.length s) 0

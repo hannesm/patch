@@ -3,7 +3,7 @@ version: "3.0.0~alpha1"
 maintainer: "Hannes Mehnert <hannes@mehnert.org>"
 authors: [
   "Hannes Mehnert <hannes@mehnert.org>"
-  "Kate <kit-ty-kate@outlook.com>"
+  "Kate <kit-ty-kate@exn.st>"
 ]
 homepage: "https://github.com/hannesm/patch"
 doc: "https://hannesm.github.io/patch/"

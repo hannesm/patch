@@ -22,14 +22,34 @@ val pp_hunk : mine_no_nl:bool -> their_no_nl:bool -> Format.formatter -> hunk ->
 (** [pp_hunk ppf hunk] pretty-prints the [hunk] on [ppf], the printing is in the
     same format as [diff] does. *)
 
+type git_ext =
+  | Rename_only of string * string
+  | Delete_only
+  | Create_only
+
 type operation =
   | Edit of string * string
   | Delete of string
   | Create of string
-  | Rename_only of string * string
-  (** The operation of a diff: in-place [Edit], [Delete], [Create], [Rename_only].
+  | Git_ext of (string * string * git_ext)
+  (** The operation of a diff: in-place [Edit], [Delete], [Create].
+      And its git-extensions: [Rename_only], [Delete_only], [Create_only].
       The parameters to the variants are filenames.
-      NOTE: in a typical git diff file, [Rename_only] does not have any prefix. *)
+
+      Note that [Edit] also renames the given file under certain conditions
+      and the file to use is driven by this POSIX rule:
+      https://pubs.opengroup.org/onlinepubs/9799919799/utilities/patch.html#tag_20_92_13_02
+
+      Note also that the two filenames in [Git_ext] represent what would be
+      in [git --diff <filename1> <filename2>] with their respective prefixes
+      removed if parsed with [parse ~p:1] or above.
+
+      Warning: The two parameters of [Rename_only] represent the values of the
+      [rename from <filename1>] and [rename to <filename2>] following the
+      specs of the git extensions. Following the behaviour of GNU Patch which
+      ignores these two lines, it is recommended to get the filenames from
+      [Git_ext] instead of from [Rename_only], which are used only for
+      pretty-printing. *)
 
 val pp_operation : Format.formatter -> operation -> unit
 (** [pp_operation ppf op] pretty-prints the operation [op] on [ppf]. *)
@@ -65,8 +85,8 @@ val patch : cleanly:bool -> string option -> t -> string option
 (** [patch file_contents diff] applies [diff] on [file_contents], resulting in
     the new file contents (or None if deleted). *)
 
-val diff : operation -> string option -> string option -> t option
-(** [diff operation content_a content_b] creates a diff between
+val diff : (string * string) option -> (string * string) option -> t option
+(** [diff (filename_a, content_a) (filename_b, content_b)] creates a diff between
     [content_a] and [content_b]. Returns [None] if no changes could be detected.
 
-    @raise Invalid_argument if both [content_a] and [content_b] are [None]. *)
+    @raise Invalid_argument if both arguments are [None]. *)
