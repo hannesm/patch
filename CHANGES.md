@@ -1,3 +1,16 @@
+## v3.0.0-alpha2 (2025-05-01)
+
+* Add support for large (>= MB) diffs (#23 @kit-ty-kate)
+* Fix printing of `Rename_only` (#23 @kit-ty-kate)
+* Add support for empty files through git extensions (#26 @kit-ty-kate)
+* Fix filename parsing of the git extensions (#26 @kit-ty-kate)
+* Move the `Rename_only` variant off of the `operation` type to the dedicated
+  new `git_ext` type containing the new variants `Delete_only` and
+  `Create_only` (#26 @kit-ty-kate)
+* Add a new `Git_ext` variant to the `operation` type (#26 @kit-ty-kate)
+* Change the type of `Patch.diff` to avoid the need to know in advance
+  what type of operation it is gonna be (#26 @kit-ty-kate)
+
 ## v3.0.0-alpha1 (2025-03-06)
 
 * Ensure compatibility with GNU Patch as much as possible:
