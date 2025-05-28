@@ -503,16 +503,6 @@ let diff_op operation a b =
     | [""], [] -> Some (create_diff ~mine_no_nl:false ~their_no_nl:true)
     | [], [""] -> Some (create_diff ~mine_no_nl:true ~their_no_nl:false)
     | [""], [""] -> Some (create_diff ~mine_no_nl:false ~their_no_nl:false)
-    | [a; ""], [b] when b <> "" ->
-        aux
-          ~mine_start ~mine_len:(mine_len + 1) ~mine:(a :: mine)
-          ~their_start ~their_len:(their_len + 1) ~their:(b :: their)
-          [""] []
-    | [a], [b; ""] when a <> "" ->
-        aux
-          ~mine_start ~mine_len:(mine_len + 1) ~mine:(a :: mine)
-          ~their_start ~their_len:(their_len + 1) ~their:(b :: their)
-          [] [""]
     | a::l1, ([] | [""]) ->
         aux
           ~mine_start ~mine_len:(mine_len + 1) ~mine:(a :: mine)
@@ -523,6 +513,16 @@ let diff_op operation a b =
           ~mine_start ~mine_len ~mine
           ~their_start ~their_len:(their_len + 1) ~their:(b :: their)
           l1 l2
+    | a::(_::_ as l1), [b] ->
+        aux
+          ~mine_start ~mine_len:(mine_len + 1) ~mine:(a :: mine)
+          ~their_start ~their_len:(their_len + 1) ~their:(b :: their)
+          l1 []
+    | [a], b::(_::_ as l2) ->
+        aux
+          ~mine_start ~mine_len:(mine_len + 1) ~mine:(a :: mine)
+          ~their_start ~their_len:(their_len + 1) ~their:(b :: their)
+          [] l2
     | a::l1, b::l2 when mine = [] && their = [] && String.equal a b ->
         aux
           ~mine_start:(mine_start + 1) ~mine_len ~mine
