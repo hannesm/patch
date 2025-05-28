@@ -1157,8 +1157,10 @@ bbb
 ccc|} in
   let expected = {|--- a
 +++ b
-@@ -3,0 +3,1 @@
+@@ -2,1 +2,2 @@
+-bbb
 \ No newline at end of file
++bbb
 +ccc
 \ No newline at end of file
 |} in
@@ -1174,8 +1176,10 @@ ccc
 |} in
   let expected = {|--- a
 +++ b
-@@ -3,0 +3,1 @@
+@@ -2,1 +2,2 @@
+-bbb
 \ No newline at end of file
++bbb
 +ccc
 |} in
   let actual = Format.asprintf "%a" Patch.pp (Option.get (Patch.diff (Some ("a", a)) (Some ("b", b)))) in
