@@ -1105,7 +1105,7 @@ let big_diff = [
   "parse", `Quick, parse_big;
   "print", `Quick, print_big;
   "parse own", `Quick, parse_own;
-  "1_000_000 print", `Quick, (fun () -> Alcotest.match_raises "[Temporary] Stack overflow" (function Stack_overflow -> true | _ -> false) one_mil_print);
+  "1_000_000 print", `Quick, one_mil_print;
   "1_000_000 apply", `Quick, (fun () -> Alcotest.match_raises "[Temporary] Stack overflow" (function Stack_overflow -> true | _ -> false) one_mil_apply);
 ]
 
