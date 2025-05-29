@@ -16,15 +16,23 @@ type parse_error = {
 exception Parse_error of parse_error
 
 let unified_diff ~mine_no_nl ~their_no_nl hunk =
-  let no_nl_str = ["\\ No newline at end of file"] in
-  (* TODO *)
-  String.concat "\n" (List.map (fun line -> "-" ^ line) hunk.mine @
-                      (if mine_no_nl then no_nl_str else []) @
-                      List.map (fun line -> "+" ^ line) hunk.their @
-                      (if their_no_nl then no_nl_str else []))
+  let buf = Buffer.create 4096 in
+  let add_no_nl buf =
+    Buffer.add_string buf "\\ No newline at end of file\n"
+  in
+  let add_line buf c line =
+    Buffer.add_char buf c;
+    Buffer.add_string buf line;
+    Buffer.add_char buf '\n';
+  in
+  List.iter (add_line buf '-') hunk.mine;
+  if mine_no_nl then add_no_nl buf;
+  List.iter (add_line buf '+') hunk.their;
+  if their_no_nl then add_no_nl buf;
+  Buffer.contents buf
 
 let pp_hunk ~mine_no_nl ~their_no_nl ppf hunk =
-  Format.fprintf ppf "%@%@ -%d,%d +%d,%d %@%@\n%s\n"
+  Format.fprintf ppf "%@%@ -%d,%d +%d,%d %@%@\n%s"
     hunk.mine_start hunk.mine_len hunk.their_start hunk.their_len
     (unified_diff ~mine_no_nl ~their_no_nl hunk)
 
