@@ -46,7 +46,10 @@ let rec apply_hunk ~cleanly ~fuzz (last_matched_line, offset, lines) ({mine_star
     if actual_mine <> (mine : string list) then
       invalid_arg "unequal mine";
     (* TODO: should we check their_len against List.length their? *)
-    (mine_start + mine_len, offset + (their_len - mine_len), List.rev_append rev_prefix (their @ suffix))
+    (mine_start + mine_len, offset + (their_len - mine_len),
+     (* TODO: Replace rev_append (rev ...) by the tail-rec when patch
+        requires OCaml >= 4.14 *)
+     List.rev_append rev_prefix (List.rev_append (List.rev their) suffix))
   in
   try patch_match ~search_offset:0
   with Invalid_argument _ ->
