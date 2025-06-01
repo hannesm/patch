@@ -1089,6 +1089,141 @@ let big_diff = [
   "parse own", `Quick, parse_own;
 ]
 
+let print_diff_mine_empty_their_no_nl () =
+  let a = {||} in
+  let b = {|aaa
+bbb
+ccc|} in
+  let expected = {|--- a
++++ b
+@@ -0,0 +1,3 @@
++aaa
++bbb
++ccc
+\ No newline at end of file
+|} in
+  let actual = Format.asprintf "%a" Patch.pp (Option.get (Patch.diff (Some ("a", a)) (Some ("b", b)))) in
+  Alcotest.(check string) __LOC__ expected actual
+
+let print_diff_mine_empty_their_nl () =
+  let a = {||} in
+  let b = {|aaa
+bbb
+ccc
+|} in
+  let expected = {|--- a
++++ b
+@@ -0,0 +1,3 @@
++aaa
++bbb
++ccc
+|} in
+  let actual = Format.asprintf "%a" Patch.pp (Option.get (Patch.diff (Some ("a", a)) (Some ("b", b)))) in
+  Alcotest.(check string) __LOC__ expected actual
+
+let print_diff_mine_no_nl_their_empty () =
+  let a = {|aaa
+bbb|} in
+  let b = {||} in
+  let expected = {|--- a
++++ b
+@@ -1,2 +0,0 @@
+-aaa
+-bbb
+\ No newline at end of file
+|} in
+  let actual = Format.asprintf "%a" Patch.pp (Option.get (Patch.diff (Some ("a", a)) (Some ("b", b)))) in
+  Alcotest.(check string) __LOC__ expected actual
+
+let print_diff_mine_nl_their_empty () =
+  let a = {|aaa
+bbb
+|} in
+  let b = {||} in
+  let expected = {|--- a
++++ b
+@@ -1,2 +0,0 @@
+-aaa
+-bbb
+|} in
+  let actual = Format.asprintf "%a" Patch.pp (Option.get (Patch.diff (Some ("a", a)) (Some ("b", b)))) in
+  Alcotest.(check string) __LOC__ expected actual
+
+let print_diff_mine_no_nl_their_no_nl () =
+  let a = {|aaa
+bbb|} in
+  let b = {|aaa
+bbb
+ccc|} in
+  let expected = {|--- a
++++ b
+@@ -3,0 +3,1 @@
+\ No newline at end of file
++ccc
+\ No newline at end of file
+|} in
+  let actual = Format.asprintf "%a" Patch.pp (Option.get (Patch.diff (Some ("a", a)) (Some ("b", b)))) in
+  Alcotest.(check string) __LOC__ expected actual
+
+let print_diff_mine_no_nl_their_nl () =
+  let a = {|aaa
+bbb|} in
+  let b = {|aaa
+bbb
+ccc
+|} in
+  let expected = {|--- a
++++ b
+@@ -3,0 +3,1 @@
+\ No newline at end of file
++ccc
+|} in
+  let actual = Format.asprintf "%a" Patch.pp (Option.get (Patch.diff (Some ("a", a)) (Some ("b", b)))) in
+  Alcotest.(check string) __LOC__ expected actual
+
+let print_diff_mine_nl_their_no_nl () =
+  let a = {|aaa
+bbb
+|} in
+  let b = {|aaa
+bbb
+ccc|} in
+  let expected = {|--- a
++++ b
+@@ -3,0 +3,1 @@
++ccc
+\ No newline at end of file
+|} in
+  let actual = Format.asprintf "%a" Patch.pp (Option.get (Patch.diff (Some ("a", a)) (Some ("b", b)))) in
+  Alcotest.(check string) __LOC__ expected actual
+
+let print_diff_mine_nl_their_nl () =
+  let a = {|aaa
+bbb
+|} in
+  let b = {|aaa
+bbb
+ccc
+|} in
+  let expected = {|--- a
++++ b
+@@ -3,0 +3,1 @@
++ccc
+|} in
+  let actual = Format.asprintf "%a" Patch.pp (Option.get (Patch.diff (Some ("a", a)) (Some ("b", b)))) in
+  Alcotest.(check string) __LOC__ expected actual
+
+let diff_print = [
+  "mine empty their no-nl", `Quick, print_diff_mine_empty_their_no_nl;
+  "mine empty their nl", `Quick, print_diff_mine_empty_their_nl;
+  "mine no-nl their empty", `Quick, print_diff_mine_no_nl_their_empty;
+  "mine nl their empty", `Quick, print_diff_mine_nl_their_empty;
+  "mine no-nl their no-nl", `Quick, print_diff_mine_no_nl_their_no_nl;
+  "mine no-nl their nl", `Quick, print_diff_mine_no_nl_their_nl;
+  "mine nl their no-nl", `Quick, print_diff_mine_nl_their_no_nl;
+  "mine nl their nl", `Quick, print_diff_mine_nl_their_nl;
+]
+
 let tests = [
   "parse", parse_diffs ;
   "apply", apply_diffs ;
@@ -1101,6 +1236,7 @@ let tests = [
   "patch -p", patch_p;
   "pretty-print filenames", pp_filenames;
   "big diff", big_diff;
+  "diff and print", diff_print;
 ]
 
 let () =
