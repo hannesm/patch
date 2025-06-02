@@ -1083,10 +1083,30 @@ let parse_own () =
     | None -> Alcotest.skip ()
   else Alcotest.skip ()
 
+let one_mil_old = lazy (opt_read "./external/1_000_000-old.txt")
+let one_mil_new = lazy (opt_read "./external/1_000_000-new.txt")
+let one_mil_diff = lazy (opt_read "./external/1_000_000.diff")
+let one_mil_print () =
+  match Lazy.force one_mil_old, Lazy.force one_mil_new, Lazy.force one_mil_diff with
+  | Some one_mil_old, Some one_mil_new, Some expected ->
+      let patch = Patch.diff (Some ("1_000_000-old.txt", one_mil_old)) (Some ("1_000_000-new.txt", one_mil_new)) in
+      let actual = Format.asprintf "%a" Patch.pp (Option.get patch) in
+      Alcotest.(check string) __LOC__ expected actual
+  | None, _, _ | _, None, _ | _, _, None -> Alcotest.skip ()
+let one_mil_apply () =
+  match Lazy.force one_mil_old, Lazy.force one_mil_new, Lazy.force one_mil_diff with
+  | Some one_mil_old, Some expected, Some diff ->
+      let patch = Patch.parse ~p:0 diff in
+      let actual = Patch.patch ~cleanly:true (Some one_mil_old) (List.hd patch) in
+      Alcotest.(check string) __LOC__ expected (Option.get actual)
+  | None, _, _ | _, None, _ | _, _, None -> Alcotest.skip ()
+
 let big_diff = [
   "parse", `Quick, parse_big;
   "print", `Quick, print_big;
   "parse own", `Quick, parse_own;
+  "1_000_000 print", `Quick, (fun () -> Alcotest.match_raises "[Temporary] Stack overflow" (function Stack_overflow -> true | _ -> false) one_mil_print);
+  "1_000_000 apply", `Quick, (fun () -> Alcotest.match_raises "[Temporary] Stack overflow" (function Stack_overflow -> true | _ -> false) one_mil_apply);
 ]
 
 let print_diff_mine_empty_their_no_nl () =
