@@ -1,3 +1,9 @@
+## v3.0.0-beta1 (2025-06-02)
+
+* Allow to use Patch.patch on large diffs with OCaml 4 (#30 @kit-ty-kate)
+* Patch.pp\_hunk: Fix support for printing large diffs with OCaml 4 (#30 @kit-ty-kate)
+* Fix Patch.diff generating malformed patch when adding a line at the end of a file that doesn't end with a newline character (#29 @kit-ty-kate)
+
 ## v3.0.0-alpha2 (2025-05-01)
 
 * Add support for large (>= MB) diffs (#23 @kit-ty-kate)

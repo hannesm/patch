@@ -1,5 +1,5 @@
 (lang dune 3.0)
 (name patch)
-(version 3.0.0~alpha2)
+(version 3.0.0~beta1)
 (executables_implicit_empty_intf true)
 (formatting disabled)
