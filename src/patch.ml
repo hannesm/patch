@@ -16,36 +16,40 @@ type parse_error = {
 exception Parse_error of parse_error
 
 let unified_diff ~mine_no_nl ~their_no_nl hunk =
-  let no_nl_str = ["\\ No newline at end of file"] in
-  (* TODO *)
-  String.concat "\n" (List.map (fun line -> "-" ^ line) hunk.mine @
-                      (if mine_no_nl then no_nl_str else []) @
-                      List.map (fun line -> "+" ^ line) hunk.their @
-                      (if their_no_nl then no_nl_str else []))
+  let buf = Buffer.create 4096 in
+  let add_no_nl buf =
+    Buffer.add_string buf "\\ No newline at end of file\n"
+  in
+  let add_line buf c line =
+    Buffer.add_char buf c;
+    Buffer.add_string buf line;
+    Buffer.add_char buf '\n';
+  in
+  List.iter (add_line buf '-') hunk.mine;
+  if mine_no_nl then add_no_nl buf;
+  List.iter (add_line buf '+') hunk.their;
+  if their_no_nl then add_no_nl buf;
+  Buffer.contents buf
 
 let pp_hunk ~mine_no_nl ~their_no_nl ppf hunk =
-  Format.fprintf ppf "%@%@ -%d,%d +%d,%d %@%@\n%s\n"
+  Format.fprintf ppf "%@%@ -%d,%d +%d,%d %@%@\n%s"
     hunk.mine_start hunk.mine_len hunk.their_start hunk.their_len
     (unified_diff ~mine_no_nl ~their_no_nl hunk)
-
-let list_cut idx l =
-  let rec aux acc idx = function
-    | l when idx = 0 -> (List.rev acc, l)
-    | [] -> invalid_arg "list_cut"
-    | x::xs -> aux (x :: acc) (idx - 1) xs
-  in
-  aux [] idx l
 
 let rec apply_hunk ~cleanly ~fuzz (last_matched_line, offset, lines) ({mine_start; mine_len; mine; their_start = _; their_len; their} as hunk) =
   let mine_start = mine_start + offset in
   let patch_match ~search_offset =
     let mine_start = mine_start + search_offset in
-    let prefix, rest = list_cut (Stdlib.max 0 (mine_start - 1)) lines in
-    let actual_mine, suffix = list_cut mine_len rest in
+    let rev_prefix, rest = Lib.List.rev_cut (Stdlib.max 0 (mine_start - 1)) lines in
+    let rev_actual_mine, suffix = Lib.List.rev_cut mine_len rest in
+    let actual_mine = List.rev rev_actual_mine in
     if actual_mine <> (mine : string list) then
       invalid_arg "unequal mine";
     (* TODO: should we check their_len against List.length their? *)
-    (mine_start + mine_len, offset + (their_len - mine_len), prefix @ their @ suffix)
+    (mine_start + mine_len, offset + (their_len - mine_len),
+     (* TODO: Replace rev_append (rev ...) by the tail-rec when patch
+        requires OCaml >= 4.14 *)
+     List.rev_append rev_prefix (List.rev_append (List.rev their) suffix))
   in
   try patch_match ~search_offset:0
   with Invalid_argument _ ->
@@ -466,23 +470,28 @@ let patch ~cleanly filedata diff =
   | Create _ ->
     begin match diff.hunks with
       | [ the_hunk ] ->
-        let d = the_hunk.their in
-        let lines = if diff.their_no_nl then d else d @ [""] in
-        Some (String.concat "\n" lines)
+        let lines = String.concat "\n" the_hunk.their in
+        let lines = if diff.their_no_nl then lines else lines ^ "\n" in
+        Some lines
       | _ -> assert false
     end
   | Edit _ ->
     let old = match filedata with None -> [] | Some x -> to_lines x in
     let _, _, lines = List.fold_left (apply_hunk ~cleanly ~fuzz:0) (0, 0, old) diff.hunks in
+    let lines = String.concat "\n" lines in
     let lines =
       match diff.mine_no_nl, diff.their_no_nl with
-      | false, true -> (match List.rev lines with ""::tl -> List.rev tl | _ -> lines)
-      | true, false -> lines @ [ "" ]
-      | false, false when filedata = None -> lines @ [ "" ] (* TODO: i'm not sure about this *)
+      | false, true ->
+          let len = String.length lines in
+          if len > 0 && String.unsafe_get lines (len - 1) = '\n' then
+            Lib.String.slice ~stop:(len - 1) lines
+          else
+            lines
+      | true, false -> lines ^ "\n"
       | false, false -> lines
       | true, true -> lines
     in
-    Some (String.concat "\n" lines)
+    Some lines
 
 let diff_op operation a b =
   let rec aux ~mine_start ~mine_len ~mine ~their_start ~their_len ~their l1 l2 =
