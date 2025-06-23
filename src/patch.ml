@@ -15,26 +15,26 @@ type parse_error = {
 
 exception Parse_error of parse_error
 
-let unified_diff ~mine_no_nl ~their_no_nl hunk =
-  let buf = Buffer.create 4096 in
-  let add_no_nl buf =
-    Buffer.add_string buf "\\ No newline at end of file\n"
+let unified_diff ~mine_no_nl ~their_no_nl ppf hunk =
+  let no_nl_str = "\\ No newline at end of file\n" in
+  let add_no_nl ppf =
+    Format.pp_print_string ppf no_nl_str
   in
-  let add_line buf c line =
-    Buffer.add_char buf c;
-    Buffer.add_string buf line;
-    Buffer.add_char buf '\n';
+  let add_line ppf c line =
+    Format.pp_print_char ppf c;
+    Format.pp_print_string ppf line;
+    Format.pp_print_char ppf '\n';
   in
-  List.iter (add_line buf '-') hunk.mine;
-  if mine_no_nl then add_no_nl buf;
-  List.iter (add_line buf '+') hunk.their;
-  if their_no_nl then add_no_nl buf;
-  Buffer.contents buf
+  List.iter (add_line ppf '-') hunk.mine;
+  if mine_no_nl then add_no_nl ppf;
+  List.iter (add_line ppf '+') hunk.their;
+  if their_no_nl then add_no_nl ppf;
+  ()
 
 let pp_hunk ~mine_no_nl ~their_no_nl ppf hunk =
-  Format.fprintf ppf "%@%@ -%d,%d +%d,%d %@%@\n%s"
-    hunk.mine_start hunk.mine_len hunk.their_start hunk.their_len
-    (unified_diff ~mine_no_nl ~their_no_nl hunk)
+  Format.fprintf ppf "%@%@ -%d,%d +%d,%d %@%@\n"
+    hunk.mine_start hunk.mine_len hunk.their_start hunk.their_len;
+  unified_diff ~mine_no_nl ~their_no_nl ppf hunk
 
 let rec apply_hunk ~cleanly ~fuzz (last_matched_line, offset, lines) ({mine_start; mine_len; mine; their_start = _; their_len; their} as hunk) =
   let mine_start = mine_start + offset in
@@ -241,43 +241,50 @@ let no_file = "/dev/null"
 
 let pp_filename ppf fn =
   (* NOTE: filename quote format from GNU diffutils *)
-  let rec aux ~to_quote buf fn ~len i =
+  let to_quote ~len s =
+    let rec aux i len s =
+      if i < len then
+        match s.[i] with
+        | '\007' | '\b' | '\t' | '\n' | '\011' | '\012' | '\r' | ' ' | '"' | '\\' -> true
+        | c when c < ' ' || c > '~' -> true
+        | _ -> aux (i + 1) len s
+      else
+        false
+    in
+    aux 0 len s
+  in
+  let rec aux ~len i ppf fn =
     if i < len then
       let c = fn.[i] in
-      let to_quote =
-        if c = '\007' then
-          (Buffer.add_string buf "\\a"; true)
-        else if c = '\b' then
-          (Buffer.add_string buf "\\b"; true)
-        else if c = '\t' then
-          (Buffer.add_string buf "\\t"; true)
-        else if c = '\n' then
-          (Buffer.add_string buf "\\n"; true)
-        else if c = '\011' then
-          (Buffer.add_string buf "\\v"; true)
-        else if c = '\012' then
-          (Buffer.add_string buf "\\f"; true)
-        else if c = '\r' then
-          (Buffer.add_string buf "\\r"; true)
-        else if c < ' ' || c > '~' then
-          (Printf.bprintf buf "\\%03o" (Char.code c); true)
-        else if c = ' ' then
-          (Buffer.add_char buf ' '; true)
-        else if c = '"' || c = '\\' then
-          (Buffer.add_char buf '\\'; Buffer.add_char buf c; true)
-        else
-          (Buffer.add_char buf c; to_quote)
-      in
-      aux ~to_quote buf fn ~len (i + 1)
-    else
-      to_quote
+      if c = '\007' then
+        Format.pp_print_string ppf "\\a"
+      else if c = '\b' then
+        Format.pp_print_string ppf "\\b"
+      else if c = '\t' then
+        Format.pp_print_string ppf "\\t"
+      else if c = '\n' then
+        Format.pp_print_string ppf "\\n"
+      else if c = '\011' then
+        Format.pp_print_string ppf "\\v"
+      else if c = '\012' then
+        Format.pp_print_string ppf "\\f"
+      else if c = '\r' then
+        Format.pp_print_string ppf "\\r"
+      else if c < ' ' || c > '~' then
+        Format.fprintf ppf "\\%03o" (Char.code c)
+      else if c = '"' then
+        Format.pp_print_string ppf "\\\""
+      else if c = '\\' then
+        Format.pp_print_string ppf "\\\\"
+      else
+        Format.pp_print_char ppf c;
+      aux ~len (i + 1) ppf fn
   in
   let len = String.length fn in
-  let buf = Buffer.create (len * 2) in
-  if aux ~to_quote:false buf fn ~len 0 then
-    Format.fprintf ppf "\"%s\"" (Buffer.contents buf)
+  if to_quote ~len fn then
+    Format.fprintf ppf "\"%a\"" (aux ~len 0) fn
   else
-    Format.pp_print_text ppf fn
+    aux ~len 0 ppf fn
 
 let pp_operation ppf = function
   | Edit (old_name, new_name) ->
@@ -324,7 +331,7 @@ let pp ppf {operation; hunks; mine_no_nl; their_no_nl} =
   aux hunks
 
 let pp_list ppf diffs =
-  List.iter (Format.fprintf ppf "%a" pp) diffs
+  List.iter (pp ppf) diffs
 
 let strip_prefix ~p filename =
   if p = 0 then
