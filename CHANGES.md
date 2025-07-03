@@ -1,3 +1,7 @@
+## v3.0.0 (2025-07-03)
+
+* No change since 3.0.0~beta1
+
 ## v3.0.0-beta1 (2025-06-02)
 
 * Allow to use Patch.patch on large diffs with OCaml 4 (#30 @kit-ty-kate)
