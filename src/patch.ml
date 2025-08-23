@@ -83,14 +83,16 @@ let rec apply_hunk ~cleanly ~fuzz (last_matched_line, offset, lines) ({mine_star
                 hunk
             in
             let hunk =
-              if Lib.List.last hunk.mine = (Lib.List.last hunk.their : string) then
+              let rev_mine = List.rev hunk.mine in
+              let rev_their = List.rev hunk.their in
+              if List.hd rev_mine = (List.hd rev_their : string) then
                 {
                   mine_start = hunk.mine_start;
                   mine_len = hunk.mine_len - 1;
-                  mine = List.rev (List.tl (List.rev hunk.mine));
+                  mine = List.rev (List.tl rev_mine);
                   their_start = hunk.their_start;
                   their_len = hunk.their_len - 1;
-                  their = List.rev (List.tl (List.rev hunk.their));
+                  their = List.rev (List.tl rev_their);
                 }
               else
                 hunk
@@ -115,21 +117,23 @@ let rec apply_hunk ~cleanly ~fuzz (last_matched_line, offset, lines) ({mine_star
 
 let to_start_len data =
   (* input being "?19,23" *)
-  match Lib.String.cut ',' (Lib.String.slice ~start:1 data) with
-  | None when data = "+1" || data = "-1" -> (1, 1)
-  | None -> invalid_arg ("start_len broken in " ^ data)
-  | Some (start, len) -> (int_of_string start, int_of_string len)
+  if data = "+1" || data = "-1" then
+    (1, 1)
+  else
+    match Lib.String.cut ',' data with
+    | None -> invalid_arg ("start_len broken in " ^ data)
+    | Some (start, len) -> (Int.abs (int_of_string start), Int.abs (int_of_string len))
 
 let count_to_sl_sl data =
   if Lib.String.is_prefix ~prefix:"@@ -" data then
     (* input: "@@ -19,23 +19,12 @@ bla" *)
     (* output: ((19,23), (19, 12)) *)
-    match List.filter (function "" -> false | _ -> true) (Lib.String.cuts '@' data) with
-    | numbers::_ ->
+    match String.split_on_char '@' data with
+    | ""::""::numbers::_ ->
        let nums = String.trim numbers in
        (match Lib.String.cut ' ' nums with
         | None -> invalid_arg "couldn't find space in count"
-        | Some (mine, theirs) -> Some (to_start_len mine, to_start_len theirs))
+        | Some (mine, theirs) -> Some (to_start_len mine, to_start_len (String.trim theirs)))
     | _ -> invalid_arg "broken line!"
   else
     None
@@ -144,11 +148,11 @@ let sort_into_bags ~counter:(mine_len, their_len) dir mine their m_nl t_nl str =
     Some (counter, `Both, (data :: mine), (data :: their), m_nl, t_nl)
   in
   let str_len = String.length str in
-  if mine_len = 0 && their_len = 0 && (str_len = 0 || str.[0] <> '\\') then
+  if mine_len = 0 && their_len = 0 && (str_len = 0 || String.unsafe_get str 0 <> '\\') then
     None
   else if str_len = 0 then
     both "" (* NOTE: this should technically be a parse error but GNU patch accepts that and some patches in opam-repository do use this behaviour *)
-  else match String.get str 0, Lib.String.slice ~start:1 str with
+  else match String.unsafe_get str 0, Lib.String.slice ~start:1 str with
     | ' ', data ->
         both data
     | '\t', data ->
@@ -243,30 +247,30 @@ let pp_filename ppf fn =
   (* NOTE: filename quote format from GNU diffutils *)
   let rec aux ~to_quote buf fn ~len i =
     if i < len then
-      let c = fn.[i] in
       let to_quote =
-        if c = '\007' then
-          (Buffer.add_string buf "\\a"; true)
-        else if c = '\b' then
-          (Buffer.add_string buf "\\b"; true)
-        else if c = '\t' then
-          (Buffer.add_string buf "\\t"; true)
-        else if c = '\n' then
-          (Buffer.add_string buf "\\n"; true)
-        else if c = '\011' then
-          (Buffer.add_string buf "\\v"; true)
-        else if c = '\012' then
-          (Buffer.add_string buf "\\f"; true)
-        else if c = '\r' then
-          (Buffer.add_string buf "\\r"; true)
-        else if c < ' ' || c > '~' then
-          (Printf.bprintf buf "\\%03o" (Char.code c); true)
-        else if c = ' ' then
-          (Buffer.add_char buf ' '; true)
-        else if c = '"' || c = '\\' then
-          (Buffer.add_char buf '\\'; Buffer.add_char buf c; true)
-        else
-          (Buffer.add_char buf c; to_quote)
+        match String.unsafe_get fn i with
+        | '\007' ->
+            Buffer.add_string buf "\\a"; true
+        | '\b' ->
+            Buffer.add_string buf "\\b"; true
+        | '\t' ->
+            Buffer.add_string buf "\\t"; true
+        | '\n' ->
+            Buffer.add_string buf "\\n"; true
+        | '\011' ->
+            Buffer.add_string buf "\\v"; true
+        | '\012' ->
+            Buffer.add_string buf "\\f"; true
+        | '\r' ->
+            Buffer.add_string buf "\\r"; true
+        | ' ' ->
+            Buffer.add_char buf ' '; true
+        | ('"' | '\\') as c ->
+            Buffer.add_char buf '\\'; Buffer.add_char buf c; true
+        | c when c < ' ' || c > '~' ->
+            Printf.bprintf buf "\\%03o" (Char.code c); true
+        | c ->
+            Buffer.add_char buf c; to_quote
       in
       aux ~to_quote buf fn ~len (i + 1)
     else
@@ -277,7 +281,7 @@ let pp_filename ppf fn =
   if aux ~to_quote:false buf fn ~len 0 then
     Format.fprintf ppf "\"%s\"" (Buffer.contents buf)
   else
-    Format.pp_print_text ppf fn
+    Format.pp_print_string ppf fn
 
 let pp_operation ppf = function
   | Edit (old_name, new_name) ->
@@ -330,7 +334,7 @@ let strip_prefix ~p filename =
   if p = 0 then
     filename
   else
-    match Lib.String.cuts '/' filename with
+    match String.split_on_char '/' filename with
     | [] -> assert false
     | x::xs ->
         (* Per GNU patch's spec: A sequence of one or more adjacent slashes is counted as a single slash. *)
@@ -476,7 +480,10 @@ let patch ~cleanly filedata diff =
       | _ -> assert false
     end
   | Edit _ ->
-    let old = match filedata with None -> [] | Some x -> to_lines x in
+    let old = match filedata with
+      | None -> invalid_arg "no input file given on edition operation"
+      | Some x -> to_lines x
+    in
     let _, _, lines = List.fold_left (apply_hunk ~cleanly ~fuzz:0) (0, 0, old) diff.hunks in
     let lines = String.concat "\n" lines in
     let lines =
