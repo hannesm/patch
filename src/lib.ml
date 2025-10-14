@@ -1,17 +1,24 @@
 module String = struct
   let is_prefix ~prefix str =
-    let pl = String.length prefix in
-    if String.length str < pl then
-      false
-    else
-      String.sub str 0 (String.length prefix) = prefix
+    let len_s = String.length str
+    and len_pre = String.length prefix in
+    let rec aux i =
+      if i = len_pre then true
+      else if String.unsafe_get str i <> String.unsafe_get prefix i then false
+      else aux (i + 1)
+    in
+    len_s >= len_pre && aux 0
 
   let is_suffix ~suffix str =
-    let pl = String.length suffix in
-    if String.length str < pl then
-      false
-    else
-      String.sub str (String.length str - pl) pl = suffix
+    let len_s = String.length str
+    and len_suf = String.length suffix in
+    let diff = len_s - len_suf in
+    let rec aux i =
+      if i = len_suf then true
+      else if String.unsafe_get str (diff + i) <> String.unsafe_get suffix i then false
+      else aux (i + 1)
+    in
+    diff >= 0 && aux 0
 
   let cut sep str =
     try
