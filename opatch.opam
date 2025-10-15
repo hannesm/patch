@@ -30,3 +30,4 @@ build: [
   ]
 ]
 dev-repo: "git+https://github.com/hannesm/patch.git"
+x-maintenance-intent: [ "(latest)" ]
