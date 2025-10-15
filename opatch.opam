@@ -1,5 +1,4 @@
 opam-version: "2.0"
-version: "3.0.0"
 synopsis: "Pure OCaml command-line tool to apply a patch"
 description:
   "Command-line tool to apply a unified diff or git-diff to a directory"
