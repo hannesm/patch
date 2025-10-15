@@ -1,3 +1,7 @@
+## v3.0.1 (2025-10-15)
+
+* Only a release of opatch (#35 @shym @kit-ty-kate)
+
 ## v3.0.0 (2025-07-03)
 
 * No change since 3.0.0~beta1
