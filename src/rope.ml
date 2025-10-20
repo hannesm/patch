@@ -86,8 +86,12 @@ let rec into_bytes buf dst_off = function
 let to_strings t =
   let rec go acc = function
     | Str (s, _nl, len, off) ->
-      let ss = Array.sub s off len in
-      Array.to_list ss @ acc
+      let r = ref [] in
+      for idx = len + off - 1 downto off do
+        let data = Array.unsafe_get s idx in
+        r := data :: !r
+      done;
+      !r @ acc
     | App (l, r, _, _) -> go (go acc r) l in
   go [] t
 
