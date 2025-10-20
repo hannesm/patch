@@ -87,11 +87,11 @@ let to_strings t =
   let rec go acc = function
     | Str (s, _nl, len, off) ->
       let r = ref [] in
-      for idx = len + off - 1 downto off do
+      for idx = off to len + off - 1 do
         let data = Array.unsafe_get s idx in
         r := data :: !r
       done;
-      !r @ acc
+      List.rev_append !r acc
     | App (l, r, _, _) -> go (go acc r) l in
   go [] t
 
