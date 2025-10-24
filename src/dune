@@ -2,7 +2,7 @@
  (name patch)
  (synopsis "Patch purely in OCaml")
  (public_name patch)
- (modules patch lib fname))
+ (modules patch lib fname rope))
 
 (executable
  (name patch_command)
