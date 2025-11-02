@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 set -e
 set -u
@@ -24,13 +24,13 @@ rm -f pkgs-with-patches
 rm -rf ./opam-repository
 git clone --depth=1 https://github.com/ocaml/opam-repository.git
 pushd ./opam-repository/packages > /dev/null
-grep -l '^patches:' */*/opam | cut -d/ -f2 >> ../../pkgs-with-patches
+grep -rl '^patches:' . | grep '/opam$' | cut -d/ -f3 >> ../../pkgs-with-patches
 popd > /dev/null
 
 rm -rf ./opam-repository-archive
 git clone --depth=1 https://github.com/ocaml/opam-repository-archive.git
 pushd ./opam-repository-archive/packages > /dev/null
-grep -l '^patches:' */*/opam | cut -d/ -f2 >> ../../pkgs-with-patches
+grep -rl '^patches:' . | grep '/opam$' | cut -d/ -f3 >> ../../pkgs-with-patches
 popd > /dev/null
 
 NB_OF_PKGS=$(cat ./pkgs-with-patches | wc -l)
