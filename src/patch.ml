@@ -45,7 +45,7 @@ let rec apply_hunk ~cleanly ~fuzz (last_matched_line, offset, rope) ({mine_start
     let actual_mine = Rope.chop rope ~off:off_mine mine_len in
     let off = off_mine + mine_len in
     let suffix = Rope.shift rope off in
-    if Rope.to_strings actual_mine <> mine then
+    if not (Rope.equal_to_string_list actual_mine mine) then
        invalid_arg "unequal mine";
     let theirs =
       let nl = Rope.last_is_nl actual_mine in

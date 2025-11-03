@@ -79,18 +79,6 @@ let rec into_bytes buf dst_off = function
     into_bytes buf dst_off l;
     into_bytes buf (dst_off + byte_length l) r
 
-let to_strings t =
-  let rec go acc = function
-    | Str (s, _nl, len, off) ->
-      let r = ref [] in
-      for idx = off to len + off - 1 do
-        let data = Array.unsafe_get s idx in
-        r := data :: !r
-      done;
-      List.rev_append !r acc
-    | App (l, r, _) -> go (go acc r) l in
-  go [] t
-
 let to_string t =
   let len = byte_length t in
   let buf = Bytes.create len in
@@ -109,3 +97,21 @@ let of_string str =
   let splitted = if last_is_nl then List.rev (List.tl (List.rev splitted)) else splitted in
   let d = Array.of_list splitted in
   Str (d, last_is_nl, Array.length d, 0)
+
+let rec equal_to_string_list t = function
+  | [] -> length t = 0
+  | hd :: tl ->
+    let rec find_data = function
+      | Str (data, _, len, off) ->
+        if len > 0 then Some (Array.get data off) else None
+      | App (l, r, _) ->
+        if length l > 0 then
+          find_data l
+        else
+          find_data r
+    in
+    match find_data t with
+    | None -> false
+    | Some data ->
+      String.equal hd data &&
+      equal_to_string_list (shift t 1) tl

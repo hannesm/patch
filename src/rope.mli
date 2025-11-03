@@ -6,9 +6,6 @@ val length : t -> int
 val empty : t
 (** [empty] is the empty rope. *)
 
-val to_strings : t -> string list
-(** [to_strings t] returns a list of strings that is the contents of [t]. *)
-
 val of_strings : string list -> bool -> t
 (** [of_strings xs nl] is a rope [t] which contains the strings of [xs]. If
     [nl] is true, the last string will have a newline, otherwise not. *)
@@ -33,3 +30,7 @@ val concat : t -> t -> t
 
 val last_is_nl : t -> bool
 (** [last_is_nl t] returns [true] if the last string should have a newline. *)
+
+val equal_to_string_list : t -> string list -> bool
+(** [equal_to_string_list t xs] returns [true] if the content of [t] is equal to
+    the content of [xs]. *)
