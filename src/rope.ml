@@ -27,9 +27,9 @@ let append t1 t2 =
 let empty = Str (Array.make 0 "", true, 0, 0)
 
 let rec unsafe_sub t start stop =
-  if start == 0 && stop = length t then
+  if start = 0 && Int.equal stop (length t) then
     t
-  else if start == stop then
+  else if Int.equal start stop then
     empty
   else match t with
     | Str (data, nl, len, off) ->
@@ -44,11 +44,11 @@ let rec unsafe_sub t start stop =
 let chop t ?(off = 0) len =
   if len < 0 || len > length t - off
   then invalid_arg "Rope.chop";
-  if len == 0 then empty else unsafe_sub t off (off + len)
+  if len = 0 then empty else unsafe_sub t off (off + len)
 
 let shift t len =
   if len < 0 then t
-  else if len == 0 then t
+  else if len = 0 then t
   else
     let max = length t in
     let len = min_int max len in
