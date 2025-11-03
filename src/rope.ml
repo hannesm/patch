@@ -28,23 +28,24 @@ let rec unsafe_sub t start stop =
     empty
   else match t with
     | Str (data, nl, len, off) ->
-      assert (stop <= len);
+      assert (stop <= (len : int));
       Str (data, nl, stop - start, off + start)
     | App (l, r, _) ->
         let len = length l in
-        if stop <= len then unsafe_sub l start stop
-        else if start >= len then unsafe_sub r (start - len) (stop - len)
+        if stop <= (len : int) then unsafe_sub l start stop
+        else if start >= (len : int) then unsafe_sub r (start - len) (stop - len)
         else append (unsafe_sub l start len) (unsafe_sub r 0 (stop - len))
 
 let chop t ?(off = 0) len =
-  if len < 0 || len > length t - off
-  then invalid_arg "Rope.chop";
+  if len < 0 || len > (length t - off : int) then
+    invalid_arg "Rope.chop";
   if len = 0 then empty else unsafe_sub t off (off + len)
 
 let shift t len =
   if len < 0 then
     invalid_arg "Rope.shift";
-  if len = 0 then t
+  if len = 0 then
+    t
   else
     let max = length t in
     let len = min_int max len in
@@ -52,7 +53,7 @@ let shift t len =
     unsafe_sub t len l
 
 let rec last_is_nl = function
-  | Str (a, nl, len, off) -> if Array.length a - off = len then nl else true
+  | Str (a, nl, len, off) -> if Int.equal (Array.length a - off) len then nl else true
   | App (_, r, _) -> last_is_nl r
 
 let rec byte_length = function
@@ -72,7 +73,7 @@ let rec into_bytes buf dst_off = function
       let data = Array.unsafe_get s idx in
       unsafe_blit_string data 0 buf !off' (String.length data);
       off' := !off' + String.length data + 1;
-      if idx - off < len - 1 || (idx - off = len - 1 && last_is_nl a) then
+      if idx - off < (len - 1 : int) || (Int.equal (idx - off) (len - 1) && last_is_nl a) then
         Bytes.unsafe_set buf (!off' - 1) '\n'
     done
   | App (l, r, _) ->
