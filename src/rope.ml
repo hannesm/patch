@@ -12,7 +12,6 @@ let length = function
   | App (_, _, len) -> len
 
 (* keep compatibility with 4.08 *)
-let max_int (a : int) (b : int) = max a b
 let min_int (a : int) (b : int) = min a b
 external unsafe_blit_string : string -> int -> bytes -> int -> int -> unit
   = "caml_blit_string" [@@noalloc]
@@ -43,8 +42,9 @@ let chop t ?(off = 0) len =
   if len = 0 then empty else unsafe_sub t off (off + len)
 
 let shift t len =
-  if len < 0 then t
-  else if len = 0 then t
+  if len < 0 then
+    invalid_arg "Rope.shift";
+  if len = 0 then t
   else
     let max = length t in
     let len = min_int max len in
@@ -98,9 +98,6 @@ let to_string t =
   Bytes.unsafe_to_string buf
 
 let concat a b = append a b
-let prepend (str, nl) t = append (Str (Array.make 1 str, nl, 1, 0)) t
-
-let append t (str, nl) = append t (Str (Array.make 1 str, nl, 1, 0))
 
 let of_strings xs last_is_nl =
   let d = Array.of_list xs in
@@ -112,5 +109,3 @@ let of_string str =
   let splitted = if last_is_nl then List.rev (List.tl (List.rev splitted)) else splitted in
   let d = Array.of_list splitted in
   Str (d, last_is_nl, Array.length d, 0)
-
-let equal a b = String.equal (to_string a) (to_string b)
