@@ -94,9 +94,8 @@ let of_strings xs last_is_nl =
 let of_string str =
   let splitted = String.split_on_char '\n' str in
   let last_is_nl = String.unsafe_get str (String.length str - 1) = '\n' in
-  let splitted = if last_is_nl then List.rev (List.tl (List.rev splitted)) else splitted in
   let d = Array.of_list splitted in
-  Str (d, last_is_nl, Array.length d, 0)
+  Str (d, last_is_nl, Array.length d - (if last_is_nl then 1 else 0), 0)
 
 let rec equal_to_string_list t = function
   | [] -> length t = 0
