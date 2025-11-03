@@ -5,15 +5,11 @@
 
 type t =
   | Str of string array * bool * int * int
-  | App of t * t * int * int
+  | App of t * t * int
 
 let length = function
   | Str (_, _, len, _) -> len
-  | App (_, _, len, _) -> len
-
-let height = function
-  | Str _ -> 0
-  | App (_, _, _, h) -> h
+  | App (_, _, len) -> len
 
 (* keep compatibility with 4.08 *)
 let max_int (a : int) (b : int) = max a b
@@ -22,7 +18,7 @@ external unsafe_blit_string : string -> int -> bytes -> int -> int -> unit
   = "caml_blit_string" [@@noalloc]
 
 let append t1 t2 =
-  App (t1, t2, length t1 + length t2, 1 + max_int (height t1) (height t2))
+  App (t1, t2, length t1 + length t2)
 
 let empty = Str (Array.make 0 "", true, 0, 0)
 
@@ -35,7 +31,7 @@ let rec unsafe_sub t start stop =
     | Str (data, nl, len, off) ->
       assert (stop <= len);
       Str (data, nl, stop - start, off + start)
-    | App (l, r, _, _) ->
+    | App (l, r, _) ->
         let len = length l in
         if stop <= len then unsafe_sub l start stop
         else if start >= len then unsafe_sub r (start - len) (stop - len)
@@ -57,7 +53,7 @@ let shift t len =
 
 let rec last_is_nl = function
   | Str (a, nl, len, off) -> if Array.length a - off = len then nl else true
-  | App (_, r, _, _) -> last_is_nl r
+  | App (_, r, _) -> last_is_nl r
 
 let rec byte_length = function
   | Str (s, _, len, off) as a ->
@@ -67,7 +63,7 @@ let rec byte_length = function
       sum := !sum + String.length data + 1
     done;
     !sum - if last_is_nl a then 0 else 1
-  | App (l, r, _, _) -> byte_length l + byte_length r
+  | App (l, r, _) -> byte_length l + byte_length r
 
 let rec into_bytes buf dst_off = function
   | Str (s, _, len, off) as a ->
@@ -79,7 +75,7 @@ let rec into_bytes buf dst_off = function
       if idx - off < len - 1 || (idx - off = len - 1 && last_is_nl a) then
         Bytes.unsafe_set buf (!off' - 1) '\n'
     done
-  | App (l, r, _, _) ->
+  | App (l, r, _) ->
     into_bytes buf dst_off l;
     into_bytes buf (dst_off + byte_length l) r
 
@@ -92,7 +88,7 @@ let to_strings t =
         r := data :: !r
       done;
       List.rev_append !r acc
-    | App (l, r, _, _) -> go (go acc r) l in
+    | App (l, r, _) -> go (go acc r) l in
   go [] t
 
 let to_string t =
