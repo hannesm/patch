@@ -40,9 +40,10 @@ let rec apply_hunk ~cleanly ~fuzz (last_matched_line, offset, rope) ({mine_start
   let mine_start = mine_start + offset in
   let patch_match ~search_offset =
     let mine_start = mine_start + search_offset in
-    let prefix = Rope.chop rope (Stdlib.max 0 (mine_start - 1)) in
-    let actual_mine = Rope.chop rope ~off:(Stdlib.max 0 (mine_start - 1)) mine_len in
-    let off = Stdlib.max 0 (mine_start - 1) + mine_len in
+    let off_mine = Stdlib.max 0 (mine_start - 1) in
+    let prefix = Rope.chop rope off_mine in
+    let actual_mine = Rope.chop rope ~off:off_mine mine_len in
+    let off = off_mine + mine_len in
     let suffix = Rope.shift rope off in
     if Rope.to_strings actual_mine <> mine then
        invalid_arg "unequal mine";
