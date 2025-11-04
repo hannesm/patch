@@ -3,7 +3,7 @@
 The loosely specified `diff` file format is widely used for transmitting
 differences of line-based information. The motivating example is
 [`opam`](https://opam.ocaml.org), which is able to validate updates being
-cryptographically signed (e.g. [conex](https://github.com/hannesm/conex)) by
+cryptographically signed (e.g. [conex](https://github.com/robur-coop/conex)) by
 providing a unified diff.
 
 The [test-based infered specification](https://www.artima.com/weblogs/viewpost.jsp?thread=164293)
@@ -50,11 +50,16 @@ or deleted, and if the chunk size is omitted (including the comma), it is set
 to 1. NB from practical experiments, only "+1" and "-1" are supported.
 
 ```OCaml
+type git_ext =
+  | Rename_only of string * string
+  | Delete_only
+  | Create_only
+
 type operation =
   | Edit of string * string
   | Delete of string
   | Create of string
-  | Rename_only of string * string
+  | Git_ext of (string * string * git_ext)
 
 type hunk (* positions and contents *)
 
@@ -73,8 +78,7 @@ from old and new file contents is also provided.
 
 The function `patch` assumes that the patch applies cleanly, and does not
 check this assumption. Exceptions may be raised if this assumption is violated.
-The git diff format allows further features, such as file permissions, and also
-a "copy from / to" header, which I was unable to spot in the wild.
+The git diff format allows further features, such as file permissions.
 
 ## Installation
 
