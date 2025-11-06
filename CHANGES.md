@@ -1,3 +1,8 @@
+## v3.1.0 (2025-11-06)
+
+* Use a rope data structure instead of lists. Improves performance especially
+  with many hunks (#37 @hannesm, review by @shym @kit-ty-kate)
+
 ## v3.0.1 (2025-10-15)
 
 * Only a release of opatch (#35 @shym @kit-ty-kate)
