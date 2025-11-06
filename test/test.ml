@@ -1101,12 +1101,24 @@ let one_mil_apply () =
       Alcotest.(check string) __LOC__ expected (Option.get actual)
   | None, _, _ | _, None, _ | _, _, None -> Alcotest.skip ()
 
+let many_hunks_old = lazy (opt_read "./external/many-hunks.old")
+let many_hunks_new = lazy (opt_read "./external/many-hunks.new")
+let many_hunks_diff = lazy (opt_read "./external/many-hunks.diff")
+let many_hunks_apply () =
+  match Lazy.force many_hunks_old, Lazy.force many_hunks_new, Lazy.force many_hunks_diff with
+  | Some many_hunks_old, Some expected, Some diff ->
+      let patch = Patch.parse ~p:0 diff in
+      let actual = Patch.patch ~cleanly:true (Some many_hunks_old) (List.hd patch) in
+      Alcotest.(check string) __LOC__ expected (Option.get actual)
+  | None, _, _ | _, None, _ | _, _, None -> Alcotest.skip ()
+
 let big_diff = [
   "parse", `Quick, parse_big;
   "print", `Quick, print_big;
   "parse own", `Quick, parse_own;
   "1_000_000 print", `Quick, one_mil_print;
   "1_000_000 apply", `Quick, one_mil_apply;
+  "many-hunks apply", `Quick, many_hunks_apply;
 ]
 
 let print_diff_mine_empty_their_no_nl () =

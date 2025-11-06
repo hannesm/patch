@@ -57,12 +57,4 @@ module List = struct
     | [] -> invalid_arg "List.last"
     | [x] -> x
     | _::xs -> last xs
-
-  let rev_cut idx l =
-    let rec aux acc idx = function
-      | l when idx = 0 -> (acc, l)
-      | [] -> invalid_arg "List.cut"
-      | x::xs -> aux (x :: acc) (idx - 1) xs
-    in
-    aux [] idx l
 end

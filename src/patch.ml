@@ -36,27 +36,30 @@ let pp_hunk ~mine_no_nl ~their_no_nl ppf hunk =
     hunk.mine_start hunk.mine_len hunk.their_start hunk.their_len
     (unified_diff ~mine_no_nl ~their_no_nl hunk)
 
-let rec apply_hunk ~cleanly ~fuzz (last_matched_line, offset, lines) ({mine_start; mine_len; mine; their_start = _; their_len; their} as hunk) =
+let rec apply_hunk ~cleanly ~fuzz (last_matched_line, offset, rope) ({mine_start; mine_len; mine; their_start = _; their_len; their} as hunk) =
   let mine_start = mine_start + offset in
   let patch_match ~search_offset =
     let mine_start = mine_start + search_offset in
-    let rev_prefix, rest = Lib.List.rev_cut (Stdlib.max 0 (mine_start - 1)) lines in
-    let rev_actual_mine, suffix = Lib.List.rev_cut mine_len rest in
-    let actual_mine = List.rev rev_actual_mine in
-    if actual_mine <> (mine : string list) then
-      invalid_arg "unequal mine";
-    (* TODO: should we check their_len against List.length their? *)
+    let off_mine = Stdlib.max 0 (mine_start - 1) in
+    let prefix = Rope.chop rope off_mine in
+    let actual_mine = Rope.chop rope ~off:off_mine mine_len in
+    let off = off_mine + mine_len in
+    let suffix = Rope.shift rope off in
+    if not (Rope.equal_to_string_list actual_mine mine) then
+       invalid_arg "unequal mine";
+    let theirs =
+      let nl = Rope.last_is_nl actual_mine in
+      Rope.of_strings their nl
+    in
     (mine_start + mine_len, offset + (their_len - mine_len),
-     (* TODO: Replace rev_append (rev ...) by the tail-rec when patch
-        requires OCaml >= 4.14 *)
-     List.rev_append rev_prefix (List.rev_append (List.rev their) suffix))
+     Rope.concat prefix (Rope.concat theirs suffix))
   in
   try patch_match ~search_offset:0
   with Invalid_argument _ ->
     if cleanly then
       invalid_arg "apply_hunk"
     else
-      let max_pos_offset = Stdlib.max 0 (List.length lines - Stdlib.max 0 (mine_start - 1) - mine_len) in
+      let max_pos_offset = Stdlib.max 0 (Rope.length rope - Stdlib.max 0 (mine_start - 1) - mine_len) in
       let max_neg_offset = mine_start - last_matched_line in
       let rec locate search_offset =
         let aux search_offset max_offset =
@@ -100,7 +103,7 @@ let rec apply_hunk ~cleanly ~fuzz (last_matched_line, offset, lines) ({mine_star
             else if mine_len = (hunk.mine_len : int) && their_len = (hunk.their_len : int) then
               invalid_arg "apply_hunk: could not apply fuzz"
             else
-              apply_hunk ~cleanly ~fuzz:(fuzz + 1) (last_matched_line, offset, lines) hunk
+              apply_hunk ~cleanly ~fuzz:(fuzz + 1) (last_matched_line, offset, rope) hunk
           else
             invalid_arg "apply_hunk"
         else
@@ -476,9 +479,9 @@ let patch ~cleanly filedata diff =
       | _ -> assert false
     end
   | Edit _ ->
-    let old = match filedata with None -> [] | Some x -> to_lines x in
-    let _, _, lines = List.fold_left (apply_hunk ~cleanly ~fuzz:0) (0, 0, old) diff.hunks in
-    let lines = String.concat "\n" lines in
+    let old = match filedata with None -> Rope.empty | Some x -> Rope.of_string x in
+    let _, _, rope = List.fold_left (apply_hunk ~cleanly ~fuzz:0) (0, 0, old) diff.hunks in
+    let lines = Rope.to_string rope in
     let lines =
       match diff.mine_no_nl, diff.their_no_nl with
       | false, true ->
