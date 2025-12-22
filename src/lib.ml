@@ -2,8 +2,9 @@ module String = struct
   let is_prefix ~prefix str =
     let rec aux i ~prefix_len ~prefix ~str =
       if i < (prefix_len : int) then
-        if String.unsafe_get str i =
-           (String.unsafe_get prefix i : char) then
+        if Char.equal
+             (String.unsafe_get str i)
+             (String.unsafe_get prefix i) then
           aux (i + 1) ~prefix_len ~prefix ~str
         else
           false
@@ -19,8 +20,9 @@ module String = struct
   let is_suffix ~suffix str =
     let rec aux suffix_i str_i ~suffix_len ~suffix ~str =
       if suffix_i < (suffix_len : int) then
-        if String.unsafe_get str str_i =
-           (String.unsafe_get suffix suffix_i : char) then
+        if Char.equal
+             (String.unsafe_get str str_i)
+             (String.unsafe_get suffix suffix_i) then
           aux (suffix_i + 1) (str_i + 1) ~suffix_len ~suffix ~str
         else
           false
@@ -53,7 +55,9 @@ module String = struct
   let count_common_suffix x y =
     let rec loop ~x ~y acc ix iy =
       if ix >= 0 && iy >= 0 &&
-         String.unsafe_get x ix = (String.unsafe_get y iy : char) then
+         Char.equal
+           (String.unsafe_get x ix)
+           (String.unsafe_get y iy) then
         loop ~x ~y (acc + 1) (ix - 1) (iy - 1)
       else
         acc

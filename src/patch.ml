@@ -73,7 +73,7 @@ let rec apply_hunk ~cleanly ~fuzz (last_matched_line, offset, rope) ({mine_start
         if search_offset > max_pos_offset && search_offset > max_neg_offset then
           if fuzz < 3 && List.length mine >= 2 && List.length their >= 2 then
             let hunk =
-              if List.hd hunk.mine = (List.hd hunk.their : string) then
+              if String.equal (List.hd hunk.mine) (List.hd hunk.their) then
                 {
                   mine_start = hunk.mine_start + 1;
                   mine_len = hunk.mine_len - 1;
@@ -88,7 +88,7 @@ let rec apply_hunk ~cleanly ~fuzz (last_matched_line, offset, rope) ({mine_start
             let hunk =
               let rev_mine = List.rev hunk.mine in
               let rev_their = List.rev hunk.their in
-              if List.hd rev_mine = (List.hd rev_their : string) then
+              if String.equal (List.hd rev_mine) (List.hd rev_their) then
                 {
                   mine_start = hunk.mine_start;
                   mine_len = hunk.mine_len - 1;
@@ -102,7 +102,7 @@ let rec apply_hunk ~cleanly ~fuzz (last_matched_line, offset, rope) ({mine_start
             in
             if hunk.mine_len = 0 && hunk.their_len = 0 then
               invalid_arg "apply_hunk: equal hunks... why?!"
-            else if mine_len = (hunk.mine_len : int) && their_len = (hunk.their_len : int) then
+            else if Int.equal mine_len hunk.mine_len && Int.equal their_len hunk.their_len then
               invalid_arg "apply_hunk: could not apply fuzz"
             else
               apply_hunk ~cleanly ~fuzz:(fuzz + 1) (last_matched_line, offset, rope) hunk
