@@ -1013,12 +1013,42 @@ let p0_p1_root = {|\
 let p0_root = operations ~p:0 [Patch.Edit ("/a/test", "/b/test")] p0_p1_root
 let p1_root = operations ~p:1 [Patch.Edit ("a/test", "b/test")] p0_p1_root
 
+let spurious_new_file_mode = {|\
+diff --git a/dir/baz.ml b/dir/baz.ml
+new file mode 100644
+index b69a69a5a..ea988f6bd 100644
+--- a/dir/baz.ml
++++ b/dir/baz.ml
+@@ -1 +1 @@
+-This is wrong
++This is right
+|}
+
+let spurious_new_file_mode =
+  operations ~p:1 [Patch.Edit ("dir/baz.ml", "dir/baz.ml")] spurious_new_file_mode
+
+let spurious_deleted_file_mode = {|\
+diff --git a/foo.ml b/foo.ml
+deleted file mode 100644
+index b69a69a5a..ea988f6bd 100644
+--- a/foo.ml
++++ b/foo.ml
+@@ -1 +1 @@
+-This is wrong
++This is right
+|}
+
+let spurious_deleted_file_mode =
+  operations ~p:1 [Patch.Edit ("foo.ml", "foo.ml")] spurious_deleted_file_mode
+
 let patch_p = [
   "-p1", `Quick, p1;
   "-p2", `Quick, p2;
   "-p1 with adjacent slashes", `Quick, p1_adjacent_slashes;
   "-p0 with root files", `Quick, p0_root;
   "-p1 with root files", `Quick, p1_root;
+  "spurious new file mode", `Quick, spurious_new_file_mode;
+  "spurious deleted file mode", `Quick, spurious_deleted_file_mode;
 ]
 
 let pp_output_test = Alcotest.testable Format.pp_print_string String.equal
