@@ -1,3 +1,8 @@
+## v3.1.1 (2026-05-05)
+
+* Handle Edit when ---/+++ contradicts git Create/Delete metadata
+  (#42 @Alizter, review by @kit-ty-kate)
+
 ## v3.1.0 (2025-11-06)
 
 * Use a rope data structure instead of lists. Improves performance especially
