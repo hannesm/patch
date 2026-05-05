@@ -425,8 +425,8 @@ let parse_one ~p data =
     | x::y::xs when Lib.String.is_prefix ~prefix:"--- " x && Lib.String.is_prefix ~prefix:"+++ " y ->
         begin match git_action, operation_of_strings ~p x y with
         | None, op -> Some op, xs
-        | Some (f, _, Delete_only), (Delete f' as op)
-        | Some (_, f, Create_only), (Create f' as op)
+        | Some (f, _, Delete_only), (Delete f' | Edit (f', _) as op)
+        | Some (_, f, Create_only), (Create f' | Edit (_, f') as op)
           when String.equal f f' -> Some op, xs
         | Some (a, b, Rename_only (_, _)), (Edit (a', b') as op)
           when String.equal a a' && String.equal b b' -> Some op, xs
