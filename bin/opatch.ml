@@ -90,7 +90,10 @@ let apply ~force ~dir ~patchname diffs =
   let apply diff =
     match diff.Patch.operation with
     | Patch.Edit (src, dst) ->
-        let create = src <> dst in
+        let create =
+          let fpath = fullpath dst in
+          not (Sys.file_exists fpath)
+        in
         let src = get_src src in
         (* see note about [Edit] operations below *)
         let content = read src in
@@ -112,6 +115,12 @@ let apply ~force ~dir ~patchname diffs =
         (* see note about [Rename_only] operations below *)
         Unix.rename src dst;
         remove ~bound:dir src
+    | Patch.Git_ext (_, _, Patch.Copy (src, dst)) ->
+        assert (src <> dst);
+        let src = get_src src in
+        let content = read src in
+        let content = patch ~force ~patchname (Some content) diff in
+        write ~create:true dst content
   in
   List.iter apply diffs
 

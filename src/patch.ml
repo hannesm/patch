@@ -45,14 +45,20 @@ let rec apply_hunk ~cleanly ~fuzz (last_matched_line, offset, rope) ({mine_start
     let actual_mine = Rope.chop rope ~off:off_mine mine_len in
     let off = off_mine + mine_len in
     let suffix = Rope.shift rope off in
-    if not (Rope.equal_to_string_list actual_mine mine) then
-       invalid_arg "unequal mine";
-    let theirs =
-      let nl = Rope.last_is_nl actual_mine in
-      Rope.of_strings their nl
-    in
-    (mine_start + mine_len, offset + (their_len - mine_len),
-     Rope.concat prefix (Rope.concat theirs suffix))
+    (* sometime the patch is already applied,
+       see https://github.com/hannesm/patch/issues/43 *)
+    if Rope.equal_to_string_list actual_mine their then
+      (mine_start + mine_len, offset + (their_len - mine_len),
+       Rope.concat prefix (Rope.concat actual_mine suffix))
+    else if not (Rope.equal_to_string_list actual_mine mine) then
+      invalid_arg "unequal mine"
+    else
+      let theirs =
+        let nl = Rope.last_is_nl actual_mine in
+        Rope.of_strings their nl
+      in
+      (mine_start + mine_len, offset + (their_len - mine_len),
+       Rope.concat prefix (Rope.concat theirs suffix))
   in
   try patch_match ~search_offset:0
   with Invalid_argument _ ->
@@ -211,6 +217,7 @@ let rec to_hunks (mine_no_nl, their_no_nl, acc) = function
 
 type git_ext =
   | Rename_only of string * string
+  | Copy of string * string
   | Delete_only
   | Create_only
 
@@ -226,7 +233,9 @@ let git_ext_eq a b = match a, b with
     -> true
   | Rename_only (a, b), Rename_only (a', b')
     -> String.equal a a' && String.equal b b'
-  | Rename_only _, _ | Delete_only, _ | Create_only, _
+  | Copy (a, b), Copy (a', b')
+    -> String.equal a a' && String.equal b b'
+  | Rename_only _, _ | Delete_only, _ | Create_only, _ | Copy _, _
     -> false
 
 let operation_eq a b = match a, b with
@@ -298,6 +307,9 @@ let pp_operation ppf = function
       | Rename_only (from_, to_) ->
           Format.fprintf ppf "rename from %a\n" pp_filename from_;
           Format.fprintf ppf "rename to %a\n" pp_filename to_
+      | Copy (from_, to_) ->
+          Format.fprintf ppf "copy from %a\n" pp_filename from_;
+          Format.fprintf ppf "copy to %a\n" pp_filename to_
       | Delete_only ->
           Format.pp_print_string ppf "deleted file mode 100644\n";
       | Create_only ->
@@ -381,6 +393,21 @@ let parse_one ~p data =
         | None, Some _ -> assert false (* impossible state *)
         | Some (Git _), Some git_action -> (Some (Git_ext git_action), x :: xs)
         end
+    | x::y::xs when is_git mode && Lib.String.is_prefix ~prefix:"copy from " x && Lib.String.is_prefix ~prefix:"copy to " y ->
+        let git_action = match mode with
+          | None -> assert false
+          | Some (Git git_filenames) ->
+              let from_ = Lib.String.slice ~start:10 x in
+              let to_ = Lib.String.slice ~start:8 y in
+              let git_filenames = Lib.String.slice ~start:11 git_filenames in
+              match Fname.parse_git_header_rename ~from_ ~to_ git_filenames with
+              | None -> git_action
+              | Some (a, b) ->
+                  let a = strip_prefix ~p a in
+                  let b = strip_prefix ~p b in
+                  Some (a, b, Copy (from_, to_))
+        in
+        find_start ~mode ~git_action xs
     | x::y::xs when is_git mode && Lib.String.is_prefix ~prefix:"rename from " x && Lib.String.is_prefix ~prefix:"rename to " y ->
         let git_action = match mode with
           | None -> assert false
@@ -430,7 +457,7 @@ let parse_one ~p data =
           when String.equal f f' -> Some op, xs
         | Some (a, b, Rename_only (_, _)), (Edit (a', b') as op)
           when String.equal a a' && String.equal b b' -> Some op, xs
-        | Some (_, _, (Rename_only _ | Delete_only | Create_only) as git_op), _
+        | Some (_, _, (Rename_only _ | Delete_only | Create_only | Copy _) as git_op), _
           -> Some (Git_ext git_op), x :: y :: xs
         end
     | x::y::_xs when Lib.String.is_prefix ~prefix:"*** " x && Lib.String.is_prefix ~prefix:"--- " y ->
@@ -466,6 +493,7 @@ let patch ~cleanly filedata diff =
         assert false;
       begin match ext with
       | Rename_only _ -> filedata
+      | Copy _ -> filedata
       | Delete_only -> None
       | Create_only -> Some ""
       end
