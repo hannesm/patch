@@ -195,6 +195,7 @@ let main version =
         if verbose then
           Printf.printf "%S applied.\n%!" (Option.value ~default:"-" patch))
       patches
-  with Invalid_argument msg -> Printf.eprintf "Fatal error: %s\n" msg
+  with Invalid_argument msg ->
+    Printf.eprintf "Fatal error: %s\n" msg ; exit 1
 
 let () = main Version.v
