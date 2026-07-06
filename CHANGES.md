@@ -1,3 +1,7 @@
+## v3.1.2 (2026-07-06)
+
+* opatch: exit with 1 if a patch does not apply (#45 @hannesm)
+
 ## v3.1.1 (2026-05-05)
 
 * Handle Edit when ---/+++ contradicts git Create/Delete metadata
