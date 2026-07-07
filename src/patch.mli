@@ -24,6 +24,7 @@ val pp_hunk : mine_no_nl:bool -> their_no_nl:bool -> Format.formatter -> hunk ->
 
 type git_ext =
   | Rename_only of string * string
+  | Copy of string * string
   | Delete_only
   | Create_only
 
@@ -33,7 +34,7 @@ type operation =
   | Create of string
   | Git_ext of (string * string * git_ext)
   (** The operation of a diff: in-place [Edit], [Delete], [Create].
-      And its git-extensions: [Rename_only], [Delete_only], [Create_only].
+      And its git-extensions: [Rename_only], [Delete_only], [Create_only], [Copy].
       The parameters to the variants are filenames.
 
       Note that [Edit] also renames the given file under certain conditions
