@@ -3,9 +3,6 @@ type t (** The type for a rope data structure *)
 val length : t -> int
 (** [length t] returns the amount of strings in [t]. *)
 
-val empty : t
-(** [empty] is the empty rope. *)
-
 val of_strings : string list -> bool -> t
 (** [of_strings xs nl] is a rope [t] which contains the strings of [xs]. If
     [nl] is true, the last string will have a newline, otherwise not. *)
