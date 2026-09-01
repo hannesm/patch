@@ -16,9 +16,16 @@ let min_int (a : int) (b : int) = min a b
 external unsafe_blit_string : string -> int -> bytes -> int -> int -> unit
   = "caml_blit_string" [@@noalloc]
 
-let append t1 t2 =
-  App (t1, t2, length t1 + length t2)
+(* Keep App children non-empty so the right child owns final-line metadata. *)
+let concat t1 t2 =
+  if length t1 = 0 then
+    t2
+  else if length t2 = 0 then
+    t1
+  else
+    App (t1, t2, length t1 + length t2)
 
+(* A true newline flag keeps the empty rope's byte length at zero. *)
 let empty = Str (Array.make 0 "", true, 0, 0)
 
 let rec unsafe_sub t start stop =
@@ -34,7 +41,7 @@ let rec unsafe_sub t start stop =
         let len = length l in
         if stop <= (len : int) then unsafe_sub l start stop
         else if start >= (len : int) then unsafe_sub r (start - len) (stop - len)
-        else append (unsafe_sub l start len) (unsafe_sub r 0 (stop - len))
+        else concat (unsafe_sub l start len) (unsafe_sub r 0 (stop - len))
 
 let chop t ?(off = 0) len =
   if len < 0 || len > (length t - off : int) then
@@ -86,17 +93,21 @@ let to_string t =
   into_bytes buf 0 t;
   Bytes.unsafe_to_string buf
 
-let concat a b = append a b
-
 let of_strings xs last_is_nl =
-  let d = Array.of_list xs in
-  Str (d, last_is_nl, Array.length d, 0)
+  match xs with
+  | [] -> empty
+  | _ ->
+    let d = Array.of_list xs in
+    Str (d, last_is_nl, Array.length d, 0)
 
 let of_string str =
-  let splitted = String.split_on_char '\n' str in
-  let last_is_nl = String.unsafe_get str (String.length str - 1) = '\n' in
-  let d = Array.of_list splitted in
-  Str (d, last_is_nl, Array.length d - (if last_is_nl then 1 else 0), 0)
+  if String.equal str "" then
+    empty
+  else
+    let splitted = String.split_on_char '\n' str in
+    let last_is_nl = String.unsafe_get str (String.length str - 1) = '\n' in
+    let d = Array.of_list splitted in
+    Str (d, last_is_nl, Array.length d - (if last_is_nl then 1 else 0), 0)
 
 let rec equal_to_string_list t = function
   | [] -> length t = 0

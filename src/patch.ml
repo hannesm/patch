@@ -483,16 +483,15 @@ let patch ~cleanly filedata diff =
     let _, _, rope = List.fold_left (apply_hunk ~cleanly ~fuzz:0) (0, 0, old) diff.hunks in
     let lines = Rope.to_string rope in
     let lines =
-      match diff.mine_no_nl, diff.their_no_nl with
-      | false, true ->
-          let len = String.length lines in
-          if len > 0 && String.unsafe_get lines (len - 1) = '\n' then
-            Lib.String.slice ~stop:(len - 1) lines
-          else
-            lines
-      | true, false -> lines ^ "\n"
-      | false, false -> lines
-      | true, true -> lines
+      if Rope.length rope = 0 then
+        lines
+      else
+        let last_is_nl = Rope.last_is_nl rope in
+        match diff.mine_no_nl, diff.their_no_nl with
+        | false, true when last_is_nl ->
+            Lib.String.slice ~stop:(String.length lines - 1) lines
+        | true, false when not last_is_nl -> lines ^ "\n"
+        | _ -> lines
     in
     Some lines
 

@@ -310,10 +310,23 @@ let basic_apply file diff exp () =
     Alcotest.(check (option string) __LOC__ exp res)
   | _ -> Alcotest.fail "expected one"
 
+let apply_partial_hunk_preserves_unterminated_suffix =
+  basic_apply
+    (Some "a\nb")
+    {|--- a
++++ b
+@@ -1 +1 @@
+-a
++A
+|}
+    (Some "A\nb")
+
 let apply_diffs =
   List.mapi (fun idx (exp, (data, diff)) ->
       "basic" ^ string_of_int idx, `Quick, basic_apply data diff exp)
-    (List.combine basic_app (List.combine basic_files basic_diffs))
+    (List.combine basic_app (List.combine basic_files basic_diffs)) @
+  [ "partial hunk preserves unterminated suffix", `Quick,
+    apply_partial_hunk_preserves_unterminated_suffix ]
 
 (* a diff with multiple files to patch, with each of the four kinds:
    rename, delete, create, edit *)
@@ -1279,6 +1292,13 @@ ccc
   let actual = Format.asprintf "%a" Patch.pp (Option.get (Patch.diff (Some ("a", a)) (Some ("b", b)))) in
   Alcotest.(check string) __LOC__ expected actual
 
+let apply_generated_diff source target () =
+  match Patch.diff (Some ("a", source)) (Some ("b", target)) with
+  | None -> Alcotest.fail "expected a diff"
+  | Some diff ->
+    let actual = Patch.patch ~cleanly:true (Some source) diff in
+    Alcotest.(check (option string)) __LOC__ (Some target) actual
+
 let diff_print = [
   "mine empty their no-nl", `Quick, print_diff_mine_empty_their_no_nl;
   "mine empty their nl", `Quick, print_diff_mine_empty_their_nl;
@@ -1288,6 +1308,21 @@ let diff_print = [
   "mine no-nl their nl", `Quick, print_diff_mine_no_nl_their_nl;
   "mine nl their no-nl", `Quick, print_diff_mine_nl_their_no_nl;
   "mine nl their nl", `Quick, print_diff_mine_nl_their_nl;
+]
+
+let generated_diff_apply = [
+  "remove content without final newline", `Quick,
+  apply_generated_diff "first\nlast" "";
+  "edit existing empty file", `Quick,
+  apply_generated_diff "" "next";
+  "remove trailing unterminated lines", `Quick,
+  apply_generated_diff "a\nb\nc" "a\n";
+  "replace content with an empty line", `Quick,
+  apply_generated_diff "x" "\n";
+  "replace content with empty lines", `Quick,
+  apply_generated_diff "x" "\n\n";
+  "remove content with final newline", `Quick,
+  apply_generated_diff "a\nb\n" "";
 ]
 
 let tests = [
@@ -1303,6 +1338,7 @@ let tests = [
   "pretty-print filenames", pp_filenames;
   "big diff", big_diff;
   "diff and print", diff_print;
+  "apply generated diff", generated_diff_apply;
 ]
 
 let () =
