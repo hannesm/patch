@@ -1065,6 +1065,79 @@ let patch_p = [
 ]
 
 let pp_output_test = Alcotest.testable Format.pp_print_string String.equal
+
+let pp_with_context () =
+  let hunk =
+    { Patch.mine_start = 1; mine_len = 5;
+      mine = ["one"; "two"; "three"; "four"; "five"];
+      their_start = 1; their_len = 5;
+      their = ["first"; "two"; "three"; "four"; "last"] }
+  in
+  let diff =
+    { Patch.operation = Edit ("a/example", "b/example"); hunks = [hunk];
+      mine_no_nl = false; their_no_nl = false }
+  in
+  let expected = {|--- a/example
++++ b/example
+@@ -1,5 +1,5 @@
+-one
++first
+ two
+ three
+ four
+-five
++last
+|} in
+  let actual = Format.asprintf "%a" Patch.pp_with_context diff in
+  Alcotest.(check string) __LOC__ expected actual;
+  match Patch.parse ~p:0 actual with
+  | [parsed] ->
+      Alcotest.(check string) __LOC__ actual
+        (Format.asprintf "%a" Patch.pp_with_context parsed)
+  | _ -> Alcotest.fail "expected one parsed context diff"
+
+let pp_with_context_preserves_newline_sides () =
+  let hunk =
+    { Patch.mine_start = 1; mine_len = 2; mine = ["first"; "last"];
+      their_start = 1; their_len = 3; their = ["first"; "last"; "next"] }
+  in
+  let diff =
+    { Patch.operation = Edit ("a", "b"); hunks = [hunk];
+      mine_no_nl = true; their_no_nl = true }
+  in
+  let expected = {|--- a
++++ b
+@@ -1,2 +1,3 @@
+ first
+-last
+\ No newline at end of file
++last
++next
+\ No newline at end of file
+|} in
+  Alcotest.(check string) __LOC__ expected
+    (Format.asprintf "%a" Patch.pp_with_context diff)
+
+let pp_with_context_shared_unterminated_suffix () =
+  let hunk =
+    { Patch.mine_start = 1; mine_len = 2; mine = ["old"; "last"];
+      their_start = 1; their_len = 2; their = ["new"; "last"] }
+  in
+  let diff =
+    { Patch.operation = Edit ("a", "b"); hunks = [hunk];
+      mine_no_nl = true; their_no_nl = true }
+  in
+  let expected = {|--- a
++++ b
+@@ -1,2 +1,2 @@
+-old
++new
+ last
+\ No newline at end of file
+|} in
+  Alcotest.(check string) __LOC__ expected
+    (Format.asprintf "%a" Patch.pp_with_context diff)
+
 let operations exp str () =
   let exp = Format.asprintf "%a" Patch.pp_operation exp in
   Alcotest.(check pp_output_test) __LOC__ str exp
@@ -1094,6 +1167,13 @@ let pp_filenames = [
   "plain", `Quick, plain_filename;
   "with spaces", `Quick, filename_with_spaces;
   "with special characters", `Quick, filename_with_special_chars;
+]
+
+let pp_context = [
+  "shared lines", `Quick, pp_with_context;
+  "newline sides", `Quick, pp_with_context_preserves_newline_sides;
+  "shared unterminated suffix", `Quick,
+  pp_with_context_shared_unterminated_suffix;
 ]
 
 let big_file = lazy (opt_read "./external/2025-01-before-archiving-phase1_999bff3ed88d26f76ff7eaddbfa7af49ed4737dc.diff")
@@ -1336,6 +1416,7 @@ let tests = [
   "diff", unified_diff_creation ;
   "patch -p", patch_p;
   "pretty-print filenames", pp_filenames;
+  "pretty-print context", pp_context;
   "big diff", big_diff;
   "diff and print", diff_print;
   "apply generated diff", generated_diff_apply;

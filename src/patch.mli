@@ -22,6 +22,10 @@ val pp_hunk : mine_no_nl:bool -> their_no_nl:bool -> Format.formatter -> hunk ->
 (** [pp_hunk ppf hunk] pretty-prints the [hunk] on [ppf], the printing is in the
     same format as [diff] does. *)
 
+val pp_hunk_with_context : mine_no_nl:bool -> their_no_nl:bool -> Format.formatter -> hunk -> unit
+(** [pp_hunk_with_context ppf hunk] pretty-prints the [hunk] and emits lines
+    shared by both sides as unified-diff context. *)
+
 type git_ext =
   | Rename_only of string * string
   | Delete_only
@@ -69,8 +73,16 @@ type t = {
 val pp : Format.formatter -> t -> unit
 (** [pp ppf t] pretty-prints [t] on [ppf]. *)
 
+val pp_with_context : Format.formatter -> t -> unit
+(** [pp_with_context ppf t] pretty-prints [t] and emits lines shared by both
+    sides as unified-diff context. *)
+
 val pp_list : Format.formatter -> t list -> unit
 (** [pp ppf diffs] pretty-prints [diffs] on [ppf]. *)
+
+val pp_list_with_context : Format.formatter -> t list -> unit
+(** [pp_list_with_context ppf diffs] pretty-prints [diffs] and emits lines
+    shared by both sides as unified-diff context. *)
 
 val parse : p:int -> string -> t list
 (** [parse ~p data] decodes [data] as a list of diffs.
