@@ -8,10 +8,12 @@ val empty : t
 
 val of_strings : string list -> bool -> t
 (** [of_strings xs nl] is a rope [t] which contains the strings of [xs]. If
-    [nl] is true, the last string will have a newline, otherwise not. *)
+    [xs] is empty, the result is [empty] and [nl] has no effect. Otherwise,
+    [nl] specifies whether the last string has a newline. *)
 
 val of_string : string -> t
-(** [of_string str] will split the string [str] on newline, and return a rope. *)
+(** [of_string ""] is [empty]. Otherwise, [of_string str] splits [str] on
+    newlines and returns the resulting rope. *)
 
 val to_string : t -> string
 (** [to_string t] is the string where the contents of [t] is present. *)
@@ -29,7 +31,8 @@ val concat : t -> t -> t
 (** [concat t t'] returns a new rope which contains [t] followed by [t']. *)
 
 val last_is_nl : t -> bool
-(** [last_is_nl t] returns [true] if the last string should have a newline. *)
+(** [last_is_nl t] returns [true] if the last string should have a newline.
+    [last_is_nl empty] is [true]. *)
 
 val equal_to_string_list : t -> string list -> bool
 (** [equal_to_string_list t xs] returns [true] if the content of [t] is equal to

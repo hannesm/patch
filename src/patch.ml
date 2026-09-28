@@ -15,7 +15,136 @@ type parse_error = {
 
 exception Parse_error of parse_error
 
-let unified_diff ~mine_no_nl ~their_no_nl hunk =
+type diff_line =
+  | Context of string * bool
+  | Mine of string * bool
+  | Their of string * bool
+
+let lines ~no_nl values =
+  let values = Array.of_list values in
+  let last = Array.length values - 1 in
+  Array.mapi (fun index value -> (value, no_nl && index = last)) values
+
+let line_equal (left, left_no_nl) (right, right_no_nl) =
+  String.equal left right && Bool.equal left_no_nl right_no_nl
+
+let common_prefix mine their =
+  let limit = min (Array.length mine) (Array.length their) in
+  let rec find index =
+    if index < limit && line_equal mine.(index) their.(index) then
+      find (index + 1)
+    else
+      index
+  in
+  find 0
+
+let common_suffix mine their prefix =
+  let mine_len = Array.length mine in
+  let their_len = Array.length their in
+  let limit = min (mine_len - prefix) (their_len - prefix) in
+  let rec find length =
+    if length < limit &&
+       line_equal mine.(mine_len - length - 1) their.(their_len - length - 1)
+    then
+      find (length + 1)
+    else
+      length
+  in
+  find 0
+
+let replacement_lines mine mine_start mine_len their their_start their_len =
+  let acc = ref [] in
+  for index = their_start + their_len - 1 downto their_start do
+    let line, no_nl = their.(index) in
+    acc := Their (line, no_nl) :: !acc
+  done;
+  for index = mine_start + mine_len - 1 downto mine_start do
+    let line, no_nl = mine.(index) in
+    acc := Mine (line, no_nl) :: !acc
+  done;
+  !acc
+
+let aligned_lines mine mine_start mine_len their their_start their_len =
+  (* Large unrelated ranges do not justify a quadratic alignment table. They
+     remain valid replacement blocks and retain any boundary context. *)
+  if mine_len <> 0 && their_len > 1_000_000 / mine_len then
+    replacement_lines mine mine_start mine_len their their_start their_len
+  else
+    let lengths = Array.make_matrix (mine_len + 1) (their_len + 1) 0 in
+    for mine_index = mine_len - 1 downto 0 do
+      for their_index = their_len - 1 downto 0 do
+        lengths.(mine_index).(their_index) <-
+          if
+            line_equal mine.(mine_start + mine_index)
+              their.(their_start + their_index)
+          then
+            lengths.(mine_index + 1).(their_index + 1) + 1
+          else
+            max lengths.(mine_index + 1).(their_index)
+              lengths.(mine_index).(their_index + 1)
+      done
+    done;
+    let rec collect mine_index their_index acc =
+      if mine_index = mine_len then
+        let rec add_theirs their_index acc =
+          if their_index = their_len then List.rev acc
+          else
+            let line, no_nl = their.(their_start + their_index) in
+            add_theirs (their_index + 1) (Their (line, no_nl) :: acc)
+        in
+        add_theirs their_index acc
+      else if their_index = their_len then
+        let rec add_mine mine_index acc =
+          if mine_index = mine_len then List.rev acc
+          else
+            let line, no_nl = mine.(mine_start + mine_index) in
+            add_mine (mine_index + 1) (Mine (line, no_nl) :: acc)
+        in
+        add_mine mine_index acc
+      else if
+        line_equal mine.(mine_start + mine_index)
+          their.(their_start + their_index)
+      then
+        let line, no_nl = mine.(mine_start + mine_index) in
+        collect (mine_index + 1) (their_index + 1)
+          (Context (line, no_nl) :: acc)
+      else if
+        lengths.(mine_index + 1).(their_index)
+        >= lengths.(mine_index).(their_index + 1)
+      then
+        let line, no_nl = mine.(mine_start + mine_index) in
+        collect (mine_index + 1) their_index (Mine (line, no_nl) :: acc)
+      else
+        let line, no_nl = their.(their_start + their_index) in
+        collect mine_index (their_index + 1) (Their (line, no_nl) :: acc)
+    in
+    collect 0 0 []
+
+let context_diff_lines ~mine_no_nl ~their_no_nl hunk =
+  let mine = lines ~no_nl:mine_no_nl hunk.mine in
+  let their = lines ~no_nl:their_no_nl hunk.their in
+  let prefix = common_prefix mine their in
+  let suffix = common_suffix mine their prefix in
+  let mine_middle_len = Array.length mine - prefix - suffix in
+  let their_middle_len = Array.length their - prefix - suffix in
+  let middle =
+    aligned_lines mine prefix mine_middle_len their prefix their_middle_len
+  in
+  let rec add_prefix index acc =
+    if index < 0 then acc
+    else
+      let line, no_nl = mine.(index) in
+      add_prefix (index - 1) (Context (line, no_nl) :: acc)
+  in
+  let rec add_suffix index acc =
+    if index = Array.length mine then List.rev acc
+    else
+      let line, no_nl = mine.(index) in
+      add_suffix (index + 1) (Context (line, no_nl) :: acc)
+  in
+  add_prefix (prefix - 1) (middle @ add_suffix (Array.length mine - suffix) [])
+
+let unified_diff ~context ~mine_no_nl ~their_no_nl hunk =
   let buf = Buffer.create 4096 in
   let add_no_nl buf =
     Buffer.add_string buf "\\ No newline at end of file\n"
@@ -25,16 +154,32 @@ let unified_diff ~mine_no_nl ~their_no_nl hunk =
     Buffer.add_string buf line;
     Buffer.add_char buf '\n';
   in
-  List.iter (add_line buf '-') hunk.mine;
-  if mine_no_nl then add_no_nl buf;
-  List.iter (add_line buf '+') hunk.their;
-  if their_no_nl then add_no_nl buf;
+  if context then
+    List.iter
+      (fun line ->
+        let marker, value, no_nl = match line with
+          | Context (value, no_nl) -> ' ', value, no_nl
+          | Mine (value, no_nl) -> '-', value, no_nl
+          | Their (value, no_nl) -> '+', value, no_nl
+        in
+        add_line buf marker value;
+        if no_nl then add_no_nl buf)
+      (context_diff_lines ~mine_no_nl ~their_no_nl hunk)
+  else begin
+    List.iter (add_line buf '-') hunk.mine;
+    if mine_no_nl then add_no_nl buf;
+    List.iter (add_line buf '+') hunk.their;
+    if their_no_nl then add_no_nl buf
+  end;
   Buffer.contents buf
 
-let pp_hunk ~mine_no_nl ~their_no_nl ppf hunk =
+let pp_hunk_mode ~context ~mine_no_nl ~their_no_nl ppf hunk =
   Format.fprintf ppf "%@%@ -%d,%d +%d,%d %@%@\n%s"
     hunk.mine_start hunk.mine_len hunk.their_start hunk.their_len
-    (unified_diff ~mine_no_nl ~their_no_nl hunk)
+    (unified_diff ~context ~mine_no_nl ~their_no_nl hunk)
+
+let pp_hunk = pp_hunk_mode ~context:false
+let pp_hunk_with_context = pp_hunk_mode ~context:true
 
 let rec apply_hunk ~cleanly ~fuzz (last_matched_line, offset, rope) ({mine_start; mine_len; mine; their_start = _; their_len; their} as hunk) =
   let mine_start = mine_start + offset in
@@ -310,7 +455,7 @@ type t = {
   their_no_nl : bool ;
 }
 
-let pp ppf {operation; hunks; mine_no_nl; their_no_nl} =
+let pp_mode ~context ppf {operation; hunks; mine_no_nl; their_no_nl} =
   pp_operation ppf operation;
   let rec aux = function
     | [] ->
@@ -319,15 +464,21 @@ let pp ppf {operation; hunks; mine_no_nl; their_no_nl} =
             assert false
         | Git_ext _ -> () (* already delt with in pp_operation *)
         end
-    | [x] -> pp_hunk ~mine_no_nl ~their_no_nl ppf x
+    | [x] -> pp_hunk_mode ~context ~mine_no_nl ~their_no_nl ppf x
     | x::xs ->
-        pp_hunk ~mine_no_nl:false ~their_no_nl:false ppf x;
+        pp_hunk_mode ~context ~mine_no_nl:false ~their_no_nl:false ppf x;
         aux xs
   in
   aux hunks
 
-let pp_list ppf diffs =
-  List.iter (Format.fprintf ppf "%a" pp) diffs
+let pp = pp_mode ~context:false
+let pp_with_context = pp_mode ~context:true
+
+let pp_list_mode ~context ppf diffs =
+  List.iter (Format.fprintf ppf "%a" (pp_mode ~context)) diffs
+
+let pp_list = pp_list_mode ~context:false
+let pp_list_with_context = pp_list_mode ~context:true
 
 let strip_prefix ~p filename =
   if p = 0 then
@@ -483,16 +634,15 @@ let patch ~cleanly filedata diff =
     let _, _, rope = List.fold_left (apply_hunk ~cleanly ~fuzz:0) (0, 0, old) diff.hunks in
     let lines = Rope.to_string rope in
     let lines =
-      match diff.mine_no_nl, diff.their_no_nl with
-      | false, true ->
-          let len = String.length lines in
-          if len > 0 && String.unsafe_get lines (len - 1) = '\n' then
-            Lib.String.slice ~stop:(len - 1) lines
-          else
-            lines
-      | true, false -> lines ^ "\n"
-      | false, false -> lines
-      | true, true -> lines
+      if Rope.length rope = 0 then
+        lines
+      else
+        let last_is_nl = Rope.last_is_nl rope in
+        match diff.mine_no_nl, diff.their_no_nl with
+        | false, true when last_is_nl ->
+            Lib.String.slice ~stop:(String.length lines - 1) lines
+        | true, false when not last_is_nl -> lines ^ "\n"
+        | _ -> lines
     in
     Some lines
 

@@ -310,10 +310,23 @@ let basic_apply file diff exp () =
     Alcotest.(check (option string) __LOC__ exp res)
   | _ -> Alcotest.fail "expected one"
 
+let apply_partial_hunk_preserves_unterminated_suffix =
+  basic_apply
+    (Some "a\nb")
+    {|--- a
++++ b
+@@ -1 +1 @@
+-a
++A
+|}
+    (Some "A\nb")
+
 let apply_diffs =
   List.mapi (fun idx (exp, (data, diff)) ->
       "basic" ^ string_of_int idx, `Quick, basic_apply data diff exp)
-    (List.combine basic_app (List.combine basic_files basic_diffs))
+    (List.combine basic_app (List.combine basic_files basic_diffs)) @
+  [ "partial hunk preserves unterminated suffix", `Quick,
+    apply_partial_hunk_preserves_unterminated_suffix ]
 
 (* a diff with multiple files to patch, with each of the four kinds:
    rename, delete, create, edit *)
@@ -1052,6 +1065,79 @@ let patch_p = [
 ]
 
 let pp_output_test = Alcotest.testable Format.pp_print_string String.equal
+
+let pp_with_context () =
+  let hunk =
+    { Patch.mine_start = 1; mine_len = 5;
+      mine = ["one"; "two"; "three"; "four"; "five"];
+      their_start = 1; their_len = 5;
+      their = ["first"; "two"; "three"; "four"; "last"] }
+  in
+  let diff =
+    { Patch.operation = Edit ("a/example", "b/example"); hunks = [hunk];
+      mine_no_nl = false; their_no_nl = false }
+  in
+  let expected = {|--- a/example
++++ b/example
+@@ -1,5 +1,5 @@
+-one
++first
+ two
+ three
+ four
+-five
++last
+|} in
+  let actual = Format.asprintf "%a" Patch.pp_with_context diff in
+  Alcotest.(check string) __LOC__ expected actual;
+  match Patch.parse ~p:0 actual with
+  | [parsed] ->
+      Alcotest.(check string) __LOC__ actual
+        (Format.asprintf "%a" Patch.pp_with_context parsed)
+  | _ -> Alcotest.fail "expected one parsed context diff"
+
+let pp_with_context_preserves_newline_sides () =
+  let hunk =
+    { Patch.mine_start = 1; mine_len = 2; mine = ["first"; "last"];
+      their_start = 1; their_len = 3; their = ["first"; "last"; "next"] }
+  in
+  let diff =
+    { Patch.operation = Edit ("a", "b"); hunks = [hunk];
+      mine_no_nl = true; their_no_nl = true }
+  in
+  let expected = {|--- a
++++ b
+@@ -1,2 +1,3 @@
+ first
+-last
+\ No newline at end of file
++last
++next
+\ No newline at end of file
+|} in
+  Alcotest.(check string) __LOC__ expected
+    (Format.asprintf "%a" Patch.pp_with_context diff)
+
+let pp_with_context_shared_unterminated_suffix () =
+  let hunk =
+    { Patch.mine_start = 1; mine_len = 2; mine = ["old"; "last"];
+      their_start = 1; their_len = 2; their = ["new"; "last"] }
+  in
+  let diff =
+    { Patch.operation = Edit ("a", "b"); hunks = [hunk];
+      mine_no_nl = true; their_no_nl = true }
+  in
+  let expected = {|--- a
++++ b
+@@ -1,2 +1,2 @@
+-old
++new
+ last
+\ No newline at end of file
+|} in
+  Alcotest.(check string) __LOC__ expected
+    (Format.asprintf "%a" Patch.pp_with_context diff)
+
 let operations exp str () =
   let exp = Format.asprintf "%a" Patch.pp_operation exp in
   Alcotest.(check pp_output_test) __LOC__ str exp
@@ -1081,6 +1167,13 @@ let pp_filenames = [
   "plain", `Quick, plain_filename;
   "with spaces", `Quick, filename_with_spaces;
   "with special characters", `Quick, filename_with_special_chars;
+]
+
+let pp_context = [
+  "shared lines", `Quick, pp_with_context;
+  "newline sides", `Quick, pp_with_context_preserves_newline_sides;
+  "shared unterminated suffix", `Quick,
+  pp_with_context_shared_unterminated_suffix;
 ]
 
 let big_file = lazy (opt_read "./external/2025-01-before-archiving-phase1_999bff3ed88d26f76ff7eaddbfa7af49ed4737dc.diff")
@@ -1279,6 +1372,13 @@ ccc
   let actual = Format.asprintf "%a" Patch.pp (Option.get (Patch.diff (Some ("a", a)) (Some ("b", b)))) in
   Alcotest.(check string) __LOC__ expected actual
 
+let apply_generated_diff source target () =
+  match Patch.diff (Some ("a", source)) (Some ("b", target)) with
+  | None -> Alcotest.fail "expected a diff"
+  | Some diff ->
+    let actual = Patch.patch ~cleanly:true (Some source) diff in
+    Alcotest.(check (option string)) __LOC__ (Some target) actual
+
 let diff_print = [
   "mine empty their no-nl", `Quick, print_diff_mine_empty_their_no_nl;
   "mine empty their nl", `Quick, print_diff_mine_empty_their_nl;
@@ -1288,6 +1388,21 @@ let diff_print = [
   "mine no-nl their nl", `Quick, print_diff_mine_no_nl_their_nl;
   "mine nl their no-nl", `Quick, print_diff_mine_nl_their_no_nl;
   "mine nl their nl", `Quick, print_diff_mine_nl_their_nl;
+]
+
+let generated_diff_apply = [
+  "remove content without final newline", `Quick,
+  apply_generated_diff "first\nlast" "";
+  "edit existing empty file", `Quick,
+  apply_generated_diff "" "next";
+  "remove trailing unterminated lines", `Quick,
+  apply_generated_diff "a\nb\nc" "a\n";
+  "replace content with an empty line", `Quick,
+  apply_generated_diff "x" "\n";
+  "replace content with empty lines", `Quick,
+  apply_generated_diff "x" "\n\n";
+  "remove content with final newline", `Quick,
+  apply_generated_diff "a\nb\n" "";
 ]
 
 let tests = [
@@ -1301,8 +1416,10 @@ let tests = [
   "diff", unified_diff_creation ;
   "patch -p", patch_p;
   "pretty-print filenames", pp_filenames;
+  "pretty-print context", pp_context;
   "big diff", big_diff;
   "diff and print", diff_print;
+  "apply generated diff", generated_diff_apply;
 ]
 
 let () =
